@@ -5,21 +5,25 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <cwchar>
 #include <exception>
+#include <filesystem>
 #include <iomanip>
 #include <initializer_list>
 #include <locale>
 #include <map>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
 
 DECLARE_COMPONENT_VERSION(
     "DJ Library Bridge",
-    "0.1.0-rc1",
+    "0.1.0-rc2",
     "Read-only Media Library bridge for DJ Library.\n"
-    "Exports an atomic snapshot to %LOCALAPPDATA%\\DJLibrary\\bridge.\n"
+    "Exports an atomic snapshot into this foobar2000 profile.\n"
     "Does not modify audio files, tags, or foobar2000 private databases."
 );
 VALIDATE_COMPONENT_FILENAME("foo_dj_library_bridge.dll");
@@ -63,6 +67,55 @@ std::string format_duration(double seconds) {
     while (!s.empty() && s.back() == '0') s.pop_back();
     if (!s.empty() && s.back() == '.') s.pop_back();
     return s;
+}
+
+std::string stable_source_id(std::string_view value) {
+    std::uint64_t hash = 14695981039346656037ULL;
+    constexpr std::uint64_t prime = 1099511628211ULL;
+    for (unsigned char c : value) {
+        if (c >= 'A' && c <= 'Z') c = static_cast<unsigned char>(c - 'A' + 'a');
+        hash ^= c;
+        hash *= prime;
+    }
+    std::ostringstream out;
+    out << std::hex << std::setfill('0') << std::setw(16) << hash;
+    return out.str();
+}
+
+std::string wide_to_utf8(const std::wstring& value) {
+    pfc::stringcvt::string_utf8_from_wide converted(value.c_str());
+    return converted.get_ptr();
+}
+
+struct BridgeEndpoint {
+    std::filesystem::path directory;
+    djbridge::SourceInfo source;
+};
+
+BridgeEndpoint bridge_endpoint_for_current_profile() {
+    pfc::string8 native_profile;
+    if (!filesystem::g_get_native_path(core_api::get_profile_path(), native_profile) || native_profile.is_empty()) {
+        throw std::runtime_error("foobar2000 profile path could not be resolved to a native path");
+    }
+
+    pfc::stringcvt::string_wide_from_utf8 wide_profile(native_profile.c_str());
+    std::filesystem::path profile_path(wide_profile.get_ptr());
+    profile_path = profile_path.lexically_normal();
+
+    std::wstring source_name_w = profile_path.filename().wstring();
+    if (_wcsicmp(source_name_w.c_str(), L"profile") == 0 && profile_path.has_parent_path()) {
+        const std::wstring parent_name = profile_path.parent_path().filename().wstring();
+        if (!parent_name.empty()) source_name_w = parent_name + L" (portable)";
+    }
+    if (source_name_w.empty()) source_name_w = L"foobar2000";
+
+    BridgeEndpoint endpoint;
+    endpoint.directory = profile_path / L"foo_dj_library_bridge";
+    endpoint.source.profile_path = native_profile.c_str();
+    endpoint.source.id = stable_source_id(endpoint.source.profile_path);
+    endpoint.source.name = wide_to_utf8(source_name_w);
+    endpoint.source.producer_version = "0.1.0-rc2";
+    return endpoint;
 }
 
 djbridge::Record make_record(const metadb_handle_ptr& handle) {
@@ -134,6 +187,14 @@ public:
 
     void on_library_initialized() override {
         try {
+            const BridgeEndpoint endpoint = bridge_endpoint_for_current_profile();
+            if (!publisher_.configure(endpoint.directory, endpoint.source)) {
+                pfc::string_formatter msg;
+                msg << "[foo_dj_library_bridge] publisher unavailable: " << publisher_.initialization_error().c_str();
+                console::print(msg.c_str());
+                return;
+            }
+
             metadb_handle_list items;
             library_manager::get()->get_all_items(items);
             records_.clear();
@@ -142,15 +203,12 @@ public:
                 records_[djbridge::identity_key(r.path, r.subsong)] = std::move(r);
             }
             initialized_ = true;
-            if (!publisher_.available()) {
-                pfc::string_formatter msg;
-                msg << "[foo_dj_library_bridge] publisher unavailable: " << publisher_.initialization_error().c_str();
-                console::print(msg.c_str());
-                return;
-            }
             publish();
+
             pfc::string_formatter msg;
-            msg << "[foo_dj_library_bridge] initialized: " << static_cast<t_uint64>(records_.size()) << " Media Library items queued for publication";
+            msg << "[foo_dj_library_bridge] initialized source '" << endpoint.source.name.c_str()
+                << "': " << static_cast<t_uint64>(records_.size())
+                << " Media Library items queued; profile-local bridge directory active";
             console::print(msg.c_str());
         } catch (const std::exception& e) { log_exception("on_library_initialized", e); }
         catch (...) { console::print("[foo_dj_library_bridge] library initialization failed with unknown exception"); }
