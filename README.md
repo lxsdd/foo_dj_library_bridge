@@ -44,7 +44,7 @@ The script downloads the exact official SDK archive from foobar2000.org into the
 
 ## Runtime verification
 
-After installing the appropriate DLL and starting foobar2000:
+After installing the component and starting foobar2000:
 
 ```powershell
 ./scripts/verify-snapshot.ps1
@@ -52,8 +52,19 @@ After installing the appropriate DLL and starting foobar2000:
 
 Expected: `PASS: schema v1, generation N, X items, complete=1`.
 
-DJ Library should then report a live bridge generation instead of `Digitalindex: Test`.
+DJ Library should report `Digitalindex: Live Gen. N` rather than the embedded test index.
 
 ## Status
 
-`0.1.0-dev`: cloud-bootstrap stage. Serialization/gzip tests, sanitizer checks, exact consumer-contract comparison and static read-only audits pass. The component itself still requires the Windows/MSVC GitHub Actions build and a real foobar2000 runtime qualification before release.
+`0.1.0-rc1`: release-candidate stage.
+
+Real Windows/foobar2000 qualification on 2026-09-29 passed with a 1,345-item Media Library:
+
+- initial full scan: 1,345 / 1,345 items;
+- remove callback: 1,345 → 1,344 and generation advanced;
+- metadata/genre modification: item count unchanged and generation advanced;
+- add callback: 1,344 → 1,345 and generation advanced;
+- full foobar2000 restart: snapshot regenerated successfully with the complete 1,345-item library;
+- DJ Library v0.3.1 RC8 accepted and applied the live snapshot.
+
+See `docs/QUALIFICATION-v0.1.0-rc1.md` for the qualification boundary.

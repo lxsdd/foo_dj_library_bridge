@@ -18,7 +18,7 @@ def require(ok, message):
 
 expected_header = "path\tsubsong\tartist\tartists\ttitle\toriginal_title\tremixed_by\talbum\talbum_artist\ttrack_number\ttotal_tracks\tdisc_number\ttotal_discs\tdate\tgenre\tstyle\tbpm\tlabel\tcatalog_number\tduration_seconds\tisrc\tcodec\tbitrate\ttag_fingerprint"
 require(expected_header.replace("\t", "\\t") in contract, "schema-v1 header changed")
-require('"0.1.0-dev"' in bridge, "component version is not 0.1.0-dev")
+require('"0.1.0-rc1"' in bridge, "component version is not 0.1.0-rc1")
 require('VALIDATE_COMPONENT_FILENAME("foo_dj_library_bridge.dll")' in bridge, "component filename validation missing")
 require('library_manager::get()->get_all_items(items)' in bridge, "full Media Library enumeration missing")
 for callback in ["on_items_added", "on_items_removed", "on_items_modified", "on_items_modified_v2", "on_library_initialized"]:

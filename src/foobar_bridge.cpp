@@ -17,7 +17,7 @@
 
 DECLARE_COMPONENT_VERSION(
     "DJ Library Bridge",
-    "0.1.0-dev",
+    "0.1.0-rc1",
     "Read-only Media Library bridge for DJ Library.\n"
     "Exports an atomic snapshot to %LOCALAPPDATA%\\DJLibrary\\bridge.\n"
     "Does not modify audio files, tags, or foobar2000 private databases."
