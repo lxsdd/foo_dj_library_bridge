@@ -33,10 +33,23 @@ RC1 was qualified on a real 1,345-track foobar2000 Media Library:
 
 RC2 does not change those callback/matching payload semantics.
 
-## Required real-runtime migration check
+## Real-runtime migration and multi-profile qualification
 
-1. Upgrade the qualified foobar instance from RC1 to RC2 and restart it.
-2. Confirm a fresh profile-local snapshot exists with exactly 1,345 items.
-3. Confirm DJ Library selects the profile-local source rather than the stale RC1 global location.
-4. Install RC2 into the second foobar profile/instance.
-5. Confirm both profile-local snapshots coexist and can be selected independently, with no cross-overwrite.
+PASS on Windows with DJ Library v0.3.1 RC9:
+
+1. Portable/alternate foobar profile produced its own profile-local bridge:
+   - source: `64bit (portable)`
+   - profile: `C:\\Projects\\foobar2000\\64bit\\profile`
+   - generation: 1
+   - items: **1,345**
+2. Standard foobar2000-v2 profile produced a separate profile-local bridge:
+   - source: `foobar2000-v2`
+   - profile: `%APPDATA%\\foobar2000-v2`
+   - generation: 1
+   - items: **54,129**
+3. DJ Library manually selected the portable source and applied the 1,345-item snapshot.
+4. Returning to automatic source selection switched to the standard profile and applied the 54,129-item snapshot.
+5. The two sources kept independent generation counters and item counts; no cross-overwrite occurred.
+6. Matching and genre projection were recalculated after source switching, proving the selected payload rather than stale status metadata became authoritative.
+
+RC2 multi-instance/profile-local storage is therefore **runtime-qualified** for the tested standard + portable profile arrangement.
