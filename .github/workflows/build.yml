@@ -1,0 +1,53 @@
+name: build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static safety/contract audit
+        run: python3 scripts/static_audit.py
+      - name: Build pure contract tests with GCC
+        run: g++ -std=c++20 -Wall -Wextra -Werror tests/contract_tests.cpp src/bridge_contract.cpp src/gzip_stored.cpp -o contract-tests
+      - name: Run GCC contract tests
+        run: ./contract-tests
+      - name: Build and run pure contract tests with Clang
+        run: |
+          clang++ -std=c++20 -Wall -Wextra -Werror tests/contract_tests.cpp src/bridge_contract.cpp src/gzip_stored.cpp -o contract-tests-clang
+          ./contract-tests-clang
+      - name: Validate gzip streams independently with Python
+        run: |
+          python3 - <<'PY'
+          import gzip
+          with gzip.open('contract-test.tsv.gz','rt',encoding='utf-8') as f:
+              lines=f.read().splitlines()
+          assert len(lines)==4, len(lines)
+          assert all(len(x.split('\t'))==24 for x in lines)
+          with gzip.open('large-gzip-test.gz','rb') as f:
+              payload=f.read()
+          expected=bytearray(b'x'*200000)
+          expected[65534]=ord('A'); expected[65535]=ord('B'); expected[131069]=ord('C')
+          assert payload == expected
+          print('PASS: independent gzip decode, exact 24 columns, multi-block boundary')
+          PY
+
+  windows-build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [Win32, x64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+      - name: Bootstrap exact foobar2000 SDK and build with VS2022 toolset
+        shell: pwsh
+        run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset v143
+      - name: Upload DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: foo_dj_library_bridge-${{ matrix.platform }}
+          path: out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll
