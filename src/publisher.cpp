@@ -6,24 +6,11 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
-#include <cstdlib>
 #include <fstream>
-#include <iomanip>
-#include <sstream>
 #include <stdexcept>
 
 namespace djbridge {
 namespace {
-
-std::wstring local_app_data() {
-    DWORD needed = GetEnvironmentVariableW(L"LOCALAPPDATA", nullptr, 0);
-    if (needed == 0) throw std::runtime_error("LOCALAPPDATA is unavailable");
-    std::wstring value(needed, L'\0');
-    DWORD written = GetEnvironmentVariableW(L"LOCALAPPDATA", value.data(), needed);
-    if (written == 0 || written >= needed) throw std::runtime_error("LOCALAPPDATA read failed");
-    value.resize(written);
-    return value;
-}
 
 void flush_path(const std::filesystem::path& path) {
     HANDLE h = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -49,15 +36,28 @@ std::string utc_now_iso8601() {
     return buf;
 }
 
+std::string state_value(std::string value) {
+    for (char& c : value) {
+        if (c == '\t' || c == '\r' || c == '\n' || c == '\0') c = ' ';
+    }
+    return value;
+}
+
 void write_state_file(const std::filesystem::path& path, std::uint64_t generation,
-                      bool complete, std::size_t item_count, std::string_view utc) {
+                      bool complete, std::size_t item_count, std::string_view utc,
+                      const SourceInfo& source) {
     std::ofstream out(path, std::ios::binary | std::ios::trunc);
     if (!out) throw std::runtime_error("cannot create bridge-state temporary file");
     out << "schema_version\t1\n"
         << "generation\t" << generation << "\n"
         << "complete\t" << (complete ? 1 : 0) << "\n"
         << "item_count\t" << item_count << "\n"
-        << "last_change_utc\t" << utc << "\n";
+        << "last_change_utc\t" << utc << "\n"
+        << "source_id\t" << state_value(source.id) << "\n"
+        << "source_name\t" << state_value(source.name) << "\n"
+        << "profile_path\t" << state_value(source.profile_path) << "\n"
+        << "producer_version\t" << state_value(source.producer_version) << "\n"
+        << "producer_pid\t" << GetCurrentProcessId() << "\n";
     out.flush();
     if (!out) throw std::runtime_error("cannot flush bridge-state temporary file");
     out.close();
@@ -66,28 +66,38 @@ void write_state_file(const std::filesystem::path& path, std::uint64_t generatio
 
 } // namespace
 
-Publisher::Publisher() {
+Publisher::Publisher() = default;
+
+Publisher::~Publisher() { shutdown(); }
+
+bool Publisher::configure(std::filesystem::path directory, SourceInfo source) {
+    if (enabled_) return directory_ == directory;
     try {
-        directory_ = default_directory();
+        directory_ = std::move(directory);
+        source_ = std::move(source);
         std::error_code ec;
         std::filesystem::create_directories(directory_, ec);
         if (ec) throw std::runtime_error("cannot create bridge directory: " + ec.message());
         generation_ = load_previous_generation();
+        stopping_ = false;
+        dirty_ = false;
+        initialization_error_.clear();
         enabled_ = true;
         worker_ = std::thread([this] { worker_loop(); });
+        return true;
     } catch (const std::exception& ex) {
         enabled_ = false;
         initialization_error_ = ex.what();
         const std::string msg = std::string("[foo_dj_library_bridge] publisher initialization failed: ") + ex.what() + "\n";
         OutputDebugStringA(msg.c_str());
+        return false;
     } catch (...) {
         enabled_ = false;
         initialization_error_ = "unknown publisher initialization failure";
         OutputDebugStringA("[foo_dj_library_bridge] publisher initialization failed with unknown exception\n");
+        return false;
     }
 }
-
-Publisher::~Publisher() { shutdown(); }
 
 void Publisher::request(std::vector<Record> snapshot) {
     if (!enabled_) return;
@@ -108,10 +118,7 @@ void Publisher::shutdown() {
     }
     cv_.notify_one();
     if (worker_.joinable()) worker_.join();
-}
-
-std::filesystem::path Publisher::default_directory() {
-    return std::filesystem::path(local_app_data()) / L"DJLibrary" / L"bridge";
+    enabled_ = false;
 }
 
 void Publisher::worker_loop() {
@@ -122,17 +129,14 @@ void Publisher::worker_loop() {
             std::unique_lock lock(mutex_);
             cv_.wait(lock, [this] { return dirty_ || stopping_; });
             if (stopping_ && !dirty_) return;
-
             observed_revision = revision_;
             cv_.wait_for(lock, std::chrono::milliseconds(750), [this, observed_revision] {
                 return stopping_ || revision_ != observed_revision;
             });
             if (!stopping_ && revision_ != observed_revision) continue;
-
             snapshot = pending_;
             dirty_ = false;
         }
-
         try {
             publish(snapshot);
         } catch (const std::exception& ex) {
@@ -141,7 +145,6 @@ void Publisher::worker_loop() {
             std::ofstream err(directory_ / L"bridge-error.txt", std::ios::binary | std::ios::trunc);
             err << msg;
         }
-
         std::lock_guard lock(mutex_);
         if (stopping_ && !dirty_) return;
     }
@@ -161,7 +164,7 @@ void Publisher::publish(const std::vector<Record>& input) {
     const auto items_tmp = directory_ / L"digital-items.tsv.gz.tmp";
     const auto items_final = directory_ / L"digital-items.tsv.gz";
 
-    write_state_file(state_tmp, next_generation, false, snapshot.size(), utc);
+    write_state_file(state_tmp, next_generation, false, snapshot.size(), utc, source_);
     replace_atomic(state_tmp, state_final);
 
     {
@@ -178,7 +181,7 @@ void Publisher::publish(const std::vector<Record>& input) {
     flush_path(items_tmp);
     replace_atomic(items_tmp, items_final);
 
-    write_state_file(state_tmp, next_generation, true, snapshot.size(), utc);
+    write_state_file(state_tmp, next_generation, true, snapshot.size(), utc, source_);
     replace_atomic(state_tmp, state_final);
 
     std::error_code ec;

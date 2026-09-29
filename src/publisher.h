@@ -3,6 +3,7 @@
 #include "bridge_contract.h"
 
 #include <condition_variable>
+#include <cstdint>
 #include <filesystem>
 #include <mutex>
 #include <string>
@@ -10,6 +11,13 @@
 #include <vector>
 
 namespace djbridge {
+
+struct SourceInfo {
+    std::string id;
+    std::string name;
+    std::string profile_path;
+    std::string producer_version;
+};
 
 class Publisher {
 public:
@@ -19,13 +27,13 @@ public:
     Publisher(const Publisher&) = delete;
     Publisher& operator=(const Publisher&) = delete;
 
+    bool configure(std::filesystem::path directory, SourceInfo source);
     void request(std::vector<Record> snapshot);
     void shutdown();
 
     bool available() const noexcept { return enabled_; }
     const std::string& initialization_error() const noexcept { return initialization_error_; }
-
-    static std::filesystem::path default_directory();
+    const std::filesystem::path& directory() const noexcept { return directory_; }
 
 private:
     void worker_loop();
@@ -33,6 +41,7 @@ private:
     std::uint64_t load_previous_generation() const;
 
     std::filesystem::path directory_;
+    SourceInfo source_;
     std::mutex mutex_;
     std::condition_variable cv_;
     std::thread worker_;
