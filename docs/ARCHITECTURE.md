@@ -15,7 +15,7 @@ The profile is resolved through `core_api::get_profile_path()` and converted to 
 - standard foobar2000 v2 installs naturally use the standard profile;
 - portable installs naturally stay inside their own portable profile;
 - two separate foobar profiles cannot overwrite one another;
-- moving a portable installation preserves the bridge relationship;
+- portable installations keep the bridge files inside their own profile tree;
 - runtime data is not mixed with the installed DLL under `user-components[-x64]`.
 
 The snapshot is regenerable runtime data, not user configuration, so it is kept as files below the profile rather than encoded into foobar2000's configuration store.
