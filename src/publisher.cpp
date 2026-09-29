@@ -1,7 +1,6 @@
 #include "publisher.h"
 #include "gzip_stored.h"
 
-#define NOMINMAX
 #include <windows.h>
 
 #include <algorithm>
