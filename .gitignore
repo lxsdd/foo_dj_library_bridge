@@ -1,0 +1,9 @@
+external/
+build/
+out/
+.vs/
+*.user
+*.suo
+contract-tests
+contract-test.tsv.gz
+large-gzip-test.gz
