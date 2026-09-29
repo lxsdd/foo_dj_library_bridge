@@ -4,11 +4,11 @@ Private companion component for the **DJ Library** desktop application.
 
 ## Goal
 
-Read the foobar2000 Media Library through the supported SDK and publish a small, read-only cross-process snapshot to:
+Read the foobar2000 Media Library through the supported SDK and publish a small, read-only cross-process snapshot into the **active foobar2000 profile**:
 
-`%LOCALAPPDATA%\DJLibrary\bridge`
+`<foobar-profile>\foo_dj_library_bridge\`
 
-The component never writes audio files, tags, or foobar2000's private database files.
+This follows foobar2000's profile/portable architecture. Standard and portable foobar2000 instances therefore keep separate bridge state automatically. The component never writes audio files, tags, or foobar2000's private database files.
 
 ## Current contract
 
@@ -19,17 +19,26 @@ The component never writes audio files, tags, or foobar2000's private database f
 - Identity: `(path, subsong)`
 - Payload: `digital-items.tsv.gz`, UTF-8, exactly 24 columns
 - Commit marker: `bridge-state.tsv`, schema v1
-- App remains read-only toward the bridge directory.
+- Optional source metadata: `source_id`, `source_name`, `profile_path`, `producer_version`, `producer_pid`
+- DJ Library remains read-only toward every bridge directory.
 
 The producer writes an explicit `complete=0` marker before replacing the payload and commits `complete=1` last. This closes the crash window where a new payload could otherwise be paired with an old complete state.
 
+## Multi-instance behavior
+
+Each foobar2000 profile has its own directory and generation counter. Two distinct foobar2000 installations/profiles therefore no longer overwrite one global snapshot. DJ Library can remember/select the profile-local source it should consume.
+
+The previous RC1 global location `%LOCALAPPDATA%\DJLibrary\bridge` is **not written** by RC2. It can remain on disk only as a legacy compatibility snapshot.
+
 ## Data flow
 
-1. `on_library_initialized()` enumerates the complete Media Library through `library_manager::get_all_items()`.
-2. `library_callback_v2` receives added, removed and modified items.
-3. The component keeps a compact in-memory projection keyed by `path + subsong`.
-4. Changes are coalesced for 750 ms and published by a worker thread. The worker receives plain copied records and never calls foobar SDK services.
-5. DJ Library validates schema, row width, item count and generation before accepting a snapshot.
+1. `on_library_initialized()` resolves the active profile using `core_api::get_profile_path()` and the SDK filesystem conversion helper.
+2. The component creates `<profile>\foo_dj_library_bridge`.
+3. `library_manager::get_all_items()` enumerates the complete Media Library.
+4. `library_callback_v2` receives added, removed and modified items.
+5. The component keeps a compact in-memory projection keyed by `path + subsong`.
+6. Changes are coalesced for 750 ms and published by a worker thread. The worker receives plain copied records and never calls foobar SDK services.
+7. DJ Library validates schema, row width, item count and generation before accepting a snapshot.
 
 ## Build
 
@@ -40,31 +49,24 @@ Open a Visual Studio Developer PowerShell and run:
 ./scripts/build.ps1 -Platform Win32 -Configuration Release
 ```
 
-The script downloads the exact official SDK archive from foobar2000.org into the ignored `external/` directory. The build forces the Visual Studio 2022 `v143` toolset across the component and SDK project references; the 2026-09-17 SDK is documented as compatible with Visual Studio 2022/2026. GitHub Actions performs Win32/x64 Windows builds and runs independent GCC + Clang contract tests on Linux.
+The script downloads the exact official SDK archive from foobar2000.org into the ignored `external/` directory. GitHub Actions performs Win32/x64 Windows builds and independent GCC + Clang contract tests on Linux.
 
 ## Runtime verification
 
-After installing the component and starting foobar2000:
+For the standard non-portable foobar2000 v2 profile:
 
 ```powershell
 ./scripts/verify-snapshot.ps1
 ```
 
-Expected: `PASS: schema v1, generation N, X items, complete=1`.
+For another/portable profile:
 
-DJ Library should report `Digitalindex: Live Gen. N` rather than the embedded test index.
+```powershell
+./scripts/verify-snapshot.ps1 -BridgeDirectory 'D:\path\to\profile\foo_dj_library_bridge'
+```
 
 ## Status
 
-`0.1.0-rc1`: release-candidate stage.
+`0.1.0-rc2`: profile-local/multi-instance release candidate.
 
-Real Windows/foobar2000 qualification on 2026-09-29 passed with a 1,345-item Media Library:
-
-- initial full scan: 1,345 / 1,345 items;
-- remove callback: 1,345 → 1,344 and generation advanced;
-- metadata/genre modification: item count unchanged and generation advanced;
-- add callback: 1,344 → 1,345 and generation advanced;
-- full foobar2000 restart: snapshot regenerated successfully with the complete 1,345-item library;
-- DJ Library v0.3.1 RC8 accepted and applied the live snapshot.
-
-See `docs/QUALIFICATION-v0.1.0-rc1.md` for the qualification boundary.
+RC1 already passed real Windows runtime qualification for full scan, remove, metadata modify, add, restart lifecycle and DJ Library live consumption. RC2 changes producer storage/source identity while keeping the 24-column payload and matching contract unchanged. A short real-runtime migration/multi-profile test remains required.
