@@ -1,4 +1,3 @@
-#define NOMINMAX
 #include <foobar2000/SDK/foobar2000.h>
 
 #include "bridge_contract.h"
@@ -98,7 +97,7 @@ djbridge::Record make_record(const metadb_handle_ptr& handle) {
     return r;
 }
 
-class BridgeCallback final : public library_callback_v2 {
+class BridgeCallback : public library_callback_v2 {
 public:
     void on_items_added(metadb_handle_list_cref items) override {
         if (!initialized_) return;
