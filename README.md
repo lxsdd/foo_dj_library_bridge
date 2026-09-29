@@ -69,4 +69,4 @@ For another/portable profile:
 
 `0.1.0-rc2`: profile-local/multi-instance release candidate.
 
-RC1 already passed real Windows runtime qualification for full scan, remove, metadata modify, add, restart lifecycle and DJ Library live consumption. RC2 changes producer storage/source identity while keeping the 24-column payload and matching contract unchanged. A short real-runtime migration/multi-profile test remains required.
+RC1 passed full-scan/add/remove/modify/restart qualification. RC2 is now also real-Windows qualified for profile-local multi-instance operation: a portable 1,345-item profile and the standard 54,129-item profile coexist independently, and DJ Library can switch between them without cross-overwrite.
