@@ -8,6 +8,13 @@ This repository is the canonical source of truth for `foo_dj_library_bridge`. Bu
 - Preserve profile-local / multi-instance behavior and the snapshot completeness protocol.
 - Keep exact `(path, subsong)` identity and the documented schema contract.
 
+## CI tiers
+
+- Follow the shared `lxsdd/dev-infrastructure/STANDARDS/CI-QUALIFICATION.md` model.
+- Push/PR is the FAST gate: contract tests plus Win32/x64 compilation, with stale runs cancelled on superseding commits.
+- Ordinary push/PR runs do not upload DLL candidates or build the long-lived combined component package.
+- The manually dispatched candidate is the FULL gate and produces the SHA-bound verified `.fb2k-component` artifact.
+
 ## Build matrix
 
 - Build both Win32 and x64 with the pinned/qualified foobar2000 SDK and supported Visual Studio toolset.
