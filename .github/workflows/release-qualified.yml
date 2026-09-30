@@ -109,7 +109,11 @@ jobs:
         run: |
           set -euo pipefail
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release/tag $TAG already exists; refusing to replace an immutable release." >&2
+            echo "Release $TAG already exists; refusing replacement." >&2
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists; refusing replacement." >&2
             exit 1
           fi
           cat > release-notes.md <<EOF
