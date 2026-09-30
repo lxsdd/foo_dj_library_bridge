@@ -1,0 +1,11 @@
+name: foobar bridge candidate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    uses: ./.github/workflows/build.yml
