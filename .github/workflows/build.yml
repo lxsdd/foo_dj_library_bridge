@@ -12,7 +12,7 @@ jobs:
   contract-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Static safety/contract audit
         run: python3 scripts/static_audit.py
       - name: Build pure contract tests with GCC
@@ -45,16 +45,18 @@ jobs:
       matrix:
         platform: [Win32, x64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: microsoft/setup-msbuild@v2
       - name: Bootstrap exact foobar2000 SDK and build with VS2022 toolset
         shell: pwsh
         run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset v143
       - name: Upload DLL
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: foo_dj_library_bridge-${{ matrix.platform }}
           path: out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll
+          if-no-files-found: error
+          retention-days: 7
 
   package-component:
     name: Package verified foobar2000 component
@@ -63,14 +65,14 @@ jobs:
       - windows-build
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Download Win32 DLL
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: foo_dj_library_bridge-Win32
           path: candidate-input/Win32
       - name: Download x64 DLL
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: foo_dj_library_bridge-x64
           path: candidate-input/x64
@@ -85,7 +87,7 @@ jobs:
             -Version $version `
             -Commit '${{ github.sha }}'
       - name: Upload qualified component candidate
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: foo_dj_library_bridge-component-${{ github.sha }}
           path: |
@@ -93,4 +95,4 @@ jobs:
             candidate-output/BUILD-MANIFEST.txt
             candidate-output/SHA256SUMS.txt
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90

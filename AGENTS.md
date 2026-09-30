@@ -34,7 +34,9 @@ A candidate or release fails qualification if either architecture is missing, sw
 
 ## Candidate and release policy
 
+- `VERSION` is the canonical package/release version source.
 - Candidate packaging runs in GitHub Actions from one exact commit.
 - Emit SHA-256/integrity metadata with the component package.
 - Real foobar2000 runtime validation must use the exact candidate artifact.
-- Release promotion reuses and verifies that exact candidate; never rebuild after runtime qualification.
+- Release promotion derives the immutable `v<VERSION>` tag from the candidate manifest, reuses and verifies that exact candidate, and never rebuilds after runtime qualification.
+- Existing release tags are immutable and must never be replaced.
