@@ -70,3 +70,12 @@ For another/portable profile:
 `0.1.0-rc2`: profile-local/multi-instance release candidate.
 
 RC1 passed full-scan/add/remove/modify/restart qualification. RC2 is now also real-Windows qualified for profile-local multi-instance operation: a portable 1,345-item profile and the standard 54,129-item profile coexist independently, and DJ Library can switch between them without cross-overwrite.
+
+
+## GitHub candidate and release flow
+
+GitHub is the canonical build authority. The workflow builds and tests both Win32 and x64, verifies the PE machine architecture, and packages one combined foobar2000 component with the Win32 DLL in the archive root and the x64 DLL under `x64/`.
+
+A manually dispatched candidate run produces an immutable `foo_dj_library_bridge-component-<commit>` Actions artifact. `VERSION` is the canonical package/release version source.
+
+Final release promotion accepts only a successful manually dispatched candidate from `main`, verifies the manifest, commit binding, package version, SHA-256 and component layout, then creates tag `v<VERSION>` and publishes those exact bytes without rebuilding.
