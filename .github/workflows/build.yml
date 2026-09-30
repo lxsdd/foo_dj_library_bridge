@@ -2,7 +2,11 @@ name: build
 on:
   push:
   pull_request:
+  workflow_call:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   contract-tests:
@@ -51,3 +55,42 @@ jobs:
         with:
           name: foo_dj_library_bridge-${{ matrix.platform }}
           path: out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll
+
+  package-component:
+    name: Package verified foobar2000 component
+    needs:
+      - contract-tests
+      - windows-build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Win32 DLL
+        uses: actions/download-artifact@v4
+        with:
+          name: foo_dj_library_bridge-Win32
+          path: candidate-input/Win32
+      - name: Download x64 DLL
+        uses: actions/download-artifact@v4
+        with:
+          name: foo_dj_library_bridge-x64
+          path: candidate-input/x64
+      - name: Verify architectures and build .fb2k-component
+        shell: pwsh
+        run: |
+          $version = (Get-Content -Raw -LiteralPath VERSION).Trim()
+          ./scripts/package-component.ps1 `
+            -Win32Dll 'candidate-input/Win32/foo_dj_library_bridge.dll' `
+            -X64Dll 'candidate-input/x64/foo_dj_library_bridge.dll' `
+            -OutputDirectory 'candidate-output' `
+            -Version $version `
+            -Commit '${{ github.sha }}'
+      - name: Upload qualified component candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: foo_dj_library_bridge-component-${{ github.sha }}
+          path: |
+            candidate-output/*.fb2k-component
+            candidate-output/BUILD-MANIFEST.txt
+            candidate-output/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30

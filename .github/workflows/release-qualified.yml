@@ -1,0 +1,115 @@
+name: Release qualified foobar bridge candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: Successful foobar bridge candidate workflow run ID
+        required: true
+        type: string
+      tag:
+        description: Immutable release tag to create
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify candidate run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.candidate_run_id }}
+        run: |
+          set -euo pipefail
+          run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID")"
+          conclusion="$(jq -r '.conclusion' <<<"$run_json")"
+          event="$(jq -r '.event' <<<"$run_json")"
+          head_branch="$(jq -r '.head_branch' <<<"$run_json")"
+          head_sha="$(jq -r '.head_sha' <<<"$run_json")"
+          workflow_path="$(jq -r '.path' <<<"$run_json")"
+          [[ "$conclusion" == "success" ]] || { echo "Candidate run is not successful." >&2; exit 1; }
+          [[ "$event" == "workflow_dispatch" ]] || { echo "Candidate run was not manually dispatched." >&2; exit 1; }
+          [[ "$head_branch" == "main" ]] || { echo "Candidate run must target main; got $head_branch." >&2; exit 1; }
+          [[ "$workflow_path" == ".github/workflows/candidate.yml" ]] || { echo "Unexpected candidate workflow: $workflow_path" >&2; exit 1; }
+
+          artifacts_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?per_page=100")"
+          mapfile -t matches < <(jq -r '.artifacts[] | select(.expired == false) | select(.name | startswith("foo_dj_library_bridge-component-")) | [.id,.name] | @tsv' <<<"$artifacts_json")
+          [[ ${#matches[@]} -eq 1 ]] || { echo "Expected exactly one component candidate artifact, found ${#matches[@]}." >&2; exit 1; }
+          IFS=$'\t' read -r artifact_id artifact_name <<<"${matches[0]}"
+          [[ "$artifact_name" == *"$head_sha" ]] || { echo "Artifact name does not bind to candidate SHA." >&2; exit 1; }
+          echo "HEAD_SHA=$head_sha" >> "$GITHUB_ENV"
+          echo "ARTIFACT_NAME=$artifact_name" >> "$GITHUB_ENV"
+          echo "ARTIFACT_ID=$artifact_id" >> "$GITHUB_ENV"
+
+      - name: Download exact component candidate
+        uses: actions/download-artifact@v4
+        with:
+          pattern: foo_dj_library_bridge-component-*
+          path: candidate
+          merge-multiple: true
+          run-id: ${{ inputs.candidate_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Verify component integrity, architecture proof, and commit binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd candidate
+          test -f BUILD-MANIFEST.txt
+          test -f SHA256SUMS.txt
+          mapfile -t components < <(find . -maxdepth 1 -type f -name '*.fb2k-component' -printf '%f\n')
+          [[ ${#components[@]} -eq 1 ]] || { echo "Expected exactly one .fb2k-component file." >&2; exit 1; }
+          component="${components[0]}"
+          manifest_commit="$(sed -n 's/^commit=//p' BUILD-MANIFEST.txt | tr -d '\r')"
+          status="$(sed -n 's/^status=//p' BUILD-MANIFEST.txt | tr -d '\r')"
+          root_machine="$(sed -n 's/^root_dll_machine=//p' BUILD-MANIFEST.txt | tr -d '\r')"
+          x64_machine="$(sed -n 's/^x64_dll_machine=//p' BUILD-MANIFEST.txt | tr -d '\r')"
+          [[ "$manifest_commit" == "$HEAD_SHA" ]] || { echo "Manifest commit mismatch." >&2; exit 1; }
+          [[ "$status" == "PASS" ]] || { echo "Candidate manifest is not PASS." >&2; exit 1; }
+          [[ "$root_machine" == "0x014C" ]] || { echo "Root DLL is not x86." >&2; exit 1; }
+          [[ "$x64_machine" == "0x8664" ]] || { echo "x64 DLL is not AMD64." >&2; exit 1; }
+          sha256sum --check SHA256SUMS.txt
+          unzip -l "$component" > component-list.txt
+          grep -Eq '[[:space:]]foo_dj_library_bridge\.dll$' component-list.txt
+          grep -Eq '[[:space:]]x64/foo_dj_library_bridge\.dll$' component-list.txt
+          if grep -Eq '[[:space:]]x86/' component-list.txt; then
+            echo "Invalid x86/ directory found in foobar2000 component." >&2
+            exit 1
+          fi
+          echo "COMPONENT=$component" >> "$GITHUB_ENV"
+
+      - name: Publish exact qualified candidate without rebuilding
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          RUN_ID: ${{ inputs.candidate_run_id }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release/tag $TAG already exists; refusing to replace an immutable candidate." >&2
+            exit 1
+          fi
+          cat > release-notes.md <<EOF
+          Qualified foo_dj_library_bridge candidate promoted without rebuilding.
+
+          Commit: $HEAD_SHA
+          Candidate workflow run: $RUN_ID
+          Candidate artifact: $ARTIFACT_NAME
+          Artifact ID: $ARTIFACT_ID
+
+          The .fb2k-component file is the exact candidate artifact. Its archive layout was verified as Win32/x86 DLL in the root and x64 DLL under x64/.
+          EOF
+          gh release create "$TAG" \
+            "candidate/$COMPONENT" \
+            candidate/BUILD-MANIFEST.txt \
+            candidate/SHA256SUMS.txt \
+            --target "$HEAD_SHA" \
+            --title "foo_dj_library_bridge · $TAG" \
+            --notes-file release-notes.md
