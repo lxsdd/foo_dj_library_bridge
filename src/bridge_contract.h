@@ -3,13 +3,19 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace djbridge {
 
-inline constexpr int kSchemaVersion = 1;
+inline constexpr int kSchemaVersion = 2;
 inline constexpr std::string_view kHeader =
-    "path\tsubsong\tartist\tartists\ttitle\toriginal_title\tremixed_by\talbum\talbum_artist\ttrack_number\ttotal_tracks\tdisc_number\ttotal_discs\tdate\tgenre\tstyle\tbpm\tlabel\tcatalog_number\tduration_seconds\tisrc\tcodec\tbitrate\ttag_fingerprint";
+    "path\tsubsong\tartist\tartists\ttitle\toriginal_title\tremixed_by\talbum\talbum_artist\ttrack_number\ttotal_tracks\tdisc_number\ttotal_discs\tdate\tgenre\tstyle\tbpm\tlabel\tcatalog_number\tduration_seconds\tisrc\tcodec\tbitrate\ttag_fingerprint\textra_metadata_json";
+
+struct MetadataEntry {
+    std::string name;
+    std::vector<std::string> values;
+};
 
 struct Record {
     std::string path;
@@ -36,8 +42,11 @@ struct Record {
     std::string codec;
     std::string bitrate;
     std::string tag_fingerprint;
+    std::string extra_metadata_json;
 };
 
+bool is_core_metadata_name(std::string_view name);
+std::string canonical_extra_metadata_json(std::vector<MetadataEntry> fields);
 std::string sanitize_tsv(std::string_view value);
 std::string identity_key(std::string_view path, std::uint32_t subsong);
 std::string fingerprint_for(const Record& record);

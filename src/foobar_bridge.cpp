@@ -21,7 +21,7 @@
 
 DECLARE_COMPONENT_VERSION(
     "DJ Library Bridge",
-    "0.1.0-rc2",
+    "0.1.0-rc3",
     "Read-only Media Library bridge for DJ Library.\n"
     "Exports an atomic snapshot into this foobar2000 profile.\n"
     "Does not modify audio files, tags, or foobar2000 private databases."
@@ -56,6 +56,25 @@ std::string info_first_of(const file_info& info, std::initializer_list<const cha
         if (value && *value) return value;
     }
     return {};
+}
+
+std::vector<djbridge::MetadataEntry> collect_metadata(const file_info& info) {
+    std::vector<djbridge::MetadataEntry> fields;
+    fields.reserve(info.meta_get_count());
+    for (t_size fieldIndex = 0; fieldIndex < info.meta_get_count(); ++fieldIndex) {
+        const char* name = info.meta_enum_name(fieldIndex);
+        if (!name || !*name) continue;
+        djbridge::MetadataEntry entry;
+        entry.name = name;
+        const t_size valueCount = info.meta_enum_value_count(fieldIndex);
+        entry.values.reserve(valueCount);
+        for (t_size valueIndex = 0; valueIndex < valueCount; ++valueIndex) {
+            const char* value = info.meta_enum_value(fieldIndex, valueIndex);
+            if (value && *value) entry.values.emplace_back(value);
+        }
+        fields.push_back(std::move(entry));
+    }
+    return fields;
 }
 
 std::string format_duration(double seconds) {
@@ -114,7 +133,7 @@ BridgeEndpoint bridge_endpoint_for_current_profile() {
     endpoint.source.profile_path = native_profile.c_str();
     endpoint.source.id = stable_source_id(endpoint.source.profile_path);
     endpoint.source.name = wide_to_utf8(source_name_w);
-    endpoint.source.producer_version = "0.1.0-rc2";
+    endpoint.source.producer_version = "0.1.0-rc3";
     return endpoint;
 }
 
@@ -146,6 +165,7 @@ djbridge::Record make_record(const metadb_handle_ptr& handle) {
     r.isrc = meta_join(info, "ISRC");
     r.codec = info_first_of(info, {"codec", "codec_profile"});
     r.bitrate = info_first_of(info, {"bitrate", "bitrate_dynamic"});
+    r.extra_metadata_json = djbridge::canonical_extra_metadata_json(collect_metadata(info));
     r.tag_fingerprint = djbridge::fingerprint_for(r);
     return r;
 }

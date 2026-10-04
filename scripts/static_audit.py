@@ -8,6 +8,7 @@ root = Path(__file__).resolve().parents[1]
 bridge = (root / "src" / "foobar_bridge.cpp").read_text(encoding="utf-8")
 publisher = (root / "src" / "publisher.cpp").read_text(encoding="utf-8")
 contract = (root / "src" / "bridge_contract.h").read_text(encoding="utf-8")
+contract_cpp = (root / "src" / "bridge_contract.cpp").read_text(encoding="utf-8")
 project = (root / "foo_dj_library_bridge.vcxproj").read_text(encoding="utf-8")
 bootstrap = (root / "scripts" / "bootstrap-sdk.ps1").read_text(encoding="utf-8")
 build = (root / "scripts" / "build.ps1").read_text(encoding="utf-8")
@@ -16,9 +17,10 @@ errors = []
 def require(ok, message):
     if not ok: errors.append(message)
 
-expected_header = "path\tsubsong\tartist\tartists\ttitle\toriginal_title\tremixed_by\talbum\talbum_artist\ttrack_number\ttotal_tracks\tdisc_number\ttotal_discs\tdate\tgenre\tstyle\tbpm\tlabel\tcatalog_number\tduration_seconds\tisrc\tcodec\tbitrate\ttag_fingerprint"
-require(expected_header.replace("\t", "\\t") in contract, "schema-v1 header changed")
-require('"0.1.0-rc2"' in bridge, "component version is not 0.1.0-rc2")
+expected_header = "path\tsubsong\tartist\tartists\ttitle\toriginal_title\tremixed_by\talbum\talbum_artist\ttrack_number\ttotal_tracks\tdisc_number\ttotal_discs\tdate\tgenre\tstyle\tbpm\tlabel\tcatalog_number\tduration_seconds\tisrc\tcodec\tbitrate\ttag_fingerprint\textra_metadata_json"
+require(expected_header.replace("\t", "\\t") in contract, "schema-v2 header changed")
+require('kSchemaVersion = 2' in contract, "schema version is not 2")
+require('"0.1.0-rc3"' in bridge, "component version is not 0.1.0-rc3")
 require('VALIDATE_COMPONENT_FILENAME("foo_dj_library_bridge.dll")' in bridge, "component filename validation missing")
 require('library_manager::get()->get_all_items(items)' in bridge, "full Media Library enumeration missing")
 for callback in ["on_items_added", "on_items_removed", "on_items_modified", "on_items_modified_v2", "on_library_initialized"]:
@@ -26,12 +28,16 @@ for callback in ["on_items_added", "on_items_removed", "on_items_modified", "on_
 require('library_callback::is_modified_from_hook()' in bridge, "display-hook modification guard missing")
 require('get_info_ref()' in bridge, "cached metadata read path missing")
 require('get_full_info_ref' not in bridge, "component must not force-read media files")
+require('meta_enum_name' in bridge and 'meta_enum_value_count' in bridge and 'meta_enum_value' in bridge, "generic metadata enumeration missing")
+require('canonical_extra_metadata_json' in bridge, "generic metadata serialization missing")
+require('extra_metadata_json' in contract and 'extra_metadata_json' in contract_cpp, "schema-v2 extra metadata field missing")
 require('core_api::get_profile_path()' in bridge, "foobar profile path API is not used")
 require('g_get_native_path(core_api::get_profile_path()' in bridge, "profile path is not converted through the SDK filesystem helper")
 require('L"foo_dj_library_bridge"' in bridge, "profile-local component data directory missing")
 require('LOCALAPPDATA' not in bridge and 'LOCALAPPDATA' not in publisher, "global LOCALAPPDATA bridge storage must not be used")
 for key in ["source_id", "source_name", "profile_path", "producer_version", "producer_pid"]:
     require(f'"{key}\\t"' in publisher, f"state metadata missing: {key}")
+require('"schema_version\\t" << kSchemaVersion' in publisher, "state schema version must follow contract schema")
 require('FOOBAR2000_TARGET_VERSION=81' in project, "foobar target version 81 missing")
 require('<LanguageStandard>stdcpp20</LanguageStandard>' in project, "C++20 missing")
 require('MultiThreadedDLL' in project and 'MultiThreadedDebugDLL' in project, "component runtime library is not aligned with official component sample")
@@ -69,7 +75,8 @@ if errors:
 print("STATIC AUDIT PASS")
 print("- read-only foobar SDK adapter")
 print("- profile-local per-instance storage via core_api::get_profile_path()")
-print("- source metadata in schema-v1 state sidecar")
-print("- exact schema-v1 payload contract")
+print("- source metadata in schema-v2 state")
+print("- exact schema-v2 payload contract with one generic metadata column")
+print("- arbitrary metadata enumeration without core-field duplication")
 print("- C++20 / target v81 / VS2022 v143 build path")
 print("- atomic complete=0 -> payload -> complete=1 publication")

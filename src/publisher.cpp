@@ -48,7 +48,7 @@ void write_state_file(const std::filesystem::path& path, std::uint64_t generatio
                       const SourceInfo& source) {
     std::ofstream out(path, std::ios::binary | std::ios::trunc);
     if (!out) throw std::runtime_error("cannot create bridge-state temporary file");
-    out << "schema_version\t1\n"
+    out << "schema_version\t" << kSchemaVersion << "\n"
         << "generation\t" << generation << "\n"
         << "complete\t" << (complete ? 1 : 0) << "\n"
         << "item_count\t" << item_count << "\n"
