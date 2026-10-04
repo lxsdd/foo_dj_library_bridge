@@ -1,6 +1,6 @@
 # foo_dj_library_bridge
 
-Private companion component for the **DJ Library** desktop application.
+Private companion component for the **DJ Library** desktop application and read-only metadata source for companion tools such as **Rekordbox MyTag Sync**.
 
 ## Goal
 
@@ -17,18 +17,23 @@ This follows foobar2000's profile/portable architecture. Standard and portable f
 - C++: **C++20**
 - Windows: Win32 + x64
 - Identity: `(path, subsong)`
-- Payload: `digital-items.tsv.gz`, UTF-8, exactly 24 columns
-- Commit marker: `bridge-state.tsv`, schema v1
+- Payload: `digital-items.tsv.gz`, UTF-8
+- Schema v2 payload: the existing 24 core columns plus exactly one appended `extra_metadata_json` column
+- Commit marker: `bridge-state.tsv`, schema v2
 - Optional source metadata: `source_id`, `source_name`, `profile_path`, `producer_version`, `producer_pid`
-- DJ Library remains read-only toward every bridge directory.
+- DJ Library and other consumers remain read-only toward every bridge directory.
+
+The first 24 columns preserve their established ordering and meaning. `extra_metadata_json` contains only foobar metadata that is not already represented by the core projection. Values are emitted as JSON arrays so true multivalue metadata stays multivalue. Core aliases such as `DATE`/`YEAR`, `LABEL`/`PUBLISHER`, track/disc aliases, `GENRE`, `STYLE`, `BPM`, `ISRC` and the other existing projection fields are deliberately excluded from the generic JSON field to avoid double representation. The generic JSON is deterministically ordered and JSON-escaped; an item with no additional metadata uses canonical `{}`.
+
+`tag_fingerprint` includes `extra_metadata_json`, so changes to additional metadata participate in change detection just like core metadata changes.
 
 The producer writes an explicit `complete=0` marker before replacing the payload and commits `complete=1` last. This closes the crash window where a new payload could otherwise be paired with an old complete state.
 
 ## Multi-instance behavior
 
-Each foobar2000 profile has its own directory and generation counter. Two distinct foobar2000 installations/profiles therefore no longer overwrite one global snapshot. DJ Library can remember/select the profile-local source it should consume.
+Each foobar2000 profile has its own directory and generation counter. Two distinct foobar2000 installations/profiles therefore no longer overwrite one global snapshot. Consumers can remember/select the profile-local source they should use.
 
-The previous RC1 global location `%LOCALAPPDATA%\DJLibrary\bridge` is **not written** by RC2. It can remain on disk only as a legacy compatibility snapshot.
+The previous RC1 global location `%LOCALAPPDATA%\DJLibrary\bridge` is **not written**. It can remain on disk only as a legacy compatibility snapshot.
 
 ## Data flow
 
@@ -37,8 +42,9 @@ The previous RC1 global location `%LOCALAPPDATA%\DJLibrary\bridge` is **not writ
 3. `library_manager::get_all_items()` enumerates the complete Media Library.
 4. `library_callback_v2` receives added, removed and modified items.
 5. The component keeps a compact in-memory projection keyed by `path + subsong`.
-6. Changes are coalesced for 750 ms and published by a worker thread. The worker receives plain copied records and never calls foobar SDK services.
-7. DJ Library validates schema, row width, item count and generation before accepting a snapshot.
+6. Core fields are projected to their established columns; all remaining metadata is serialized once into `extra_metadata_json` with true arrays.
+7. Changes are coalesced for 750 ms and published by a worker thread. The worker receives plain copied records and never calls foobar SDK services.
+8. Consumers validate schema, row width, item count and generation before accepting a snapshot.
 
 ## Build
 
@@ -67,10 +73,9 @@ For another/portable profile:
 
 ## Status
 
-`0.1.0-rc2`: profile-local/multi-instance release candidate.
+`0.1.0-rc3`: schema-v2 development candidate for the single-snapshot generic metadata projection. This revision must not be promoted to `main`/release until downstream compatibility has been qualified against DJ Library and Rekordbox MyTag Sync.
 
-RC1 passed full-scan/add/remove/modify/restart qualification. RC2 is now also real-Windows qualified for profile-local multi-instance operation: a portable 1,345-item profile and the standard 54,129-item profile coexist independently, and DJ Library can switch between them without cross-overwrite.
-
+RC2 remains the last real-Windows-qualified profile-local/multi-instance baseline: a portable 1,345-item profile and the standard 54,129-item profile coexist independently, and DJ Library can switch between them without cross-overwrite.
 
 ## GitHub candidate and release flow
 
