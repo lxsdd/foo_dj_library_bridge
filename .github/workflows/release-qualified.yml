@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       candidate_run_id:
-        description: Successful foobar bridge candidate workflow run ID
+        description: Successful main build or foobar bridge candidate workflow run ID
         required: true
         type: string
 
@@ -32,9 +32,11 @@ jobs:
           workflow_path="$(jq -r '.path' <<<"$run_json")"
 
           [[ "$conclusion" == "success" ]] || { echo "Candidate run is not successful." >&2; exit 1; }
-          [[ "$event" == "workflow_dispatch" ]] || { echo "Candidate run was not manually dispatched." >&2; exit 1; }
           [[ "$head_branch" == "main" ]] || { echo "Candidate run must target main; got $head_branch." >&2; exit 1; }
-          [[ "$workflow_path" == ".github/workflows/candidate.yml" ]] || { echo "Unexpected candidate workflow: $workflow_path" >&2; exit 1; }
+          case "$workflow_path:$event" in
+            ".github/workflows/build.yml:push"|".github/workflows/build.yml:workflow_dispatch"|".github/workflows/candidate.yml:workflow_dispatch") ;;
+            *) echo "Unexpected qualification source: workflow=$workflow_path event=$event" >&2; exit 1 ;;
+          esac
 
           expected_artifact="foo_dj_library_bridge-component-$head_sha"
           artifacts_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?per_page=100")"
