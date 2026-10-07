@@ -201,7 +201,7 @@ std::string fingerprint_for(const Record& record) {
 }
 
 std::string to_tsv_line(const Record& record) {
-    std::array<std::string, 25> values = {
+    std::array<std::string, 26> values = {
         sanitize_tsv(record.path), std::to_string(record.subsong),
         sanitize_tsv(record.artist), sanitize_tsv(record.artists),
         sanitize_tsv(record.title), sanitize_tsv(record.original_title),
@@ -214,7 +214,8 @@ std::string to_tsv_line(const Record& record) {
         sanitize_tsv(record.catalog_number), sanitize_tsv(record.duration_seconds),
         sanitize_tsv(record.isrc), sanitize_tsv(record.codec),
         sanitize_tsv(record.bitrate), sanitize_tsv(record.tag_fingerprint),
-        sanitize_tsv(record.extra_metadata_json)
+        sanitize_tsv(record.extra_metadata_json),
+        sanitize_tsv(record.metadata_vectors_json)
     };
 
     std::string out;
