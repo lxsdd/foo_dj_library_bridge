@@ -8,7 +8,7 @@
 
 namespace djbridge {
 
-inline constexpr int kSchemaVersion = 2;
+inline constexpr int kSchemaVersion = 3;
 inline constexpr std::string_view kHeader =
     "path\tsubsong\tartist\tartists\ttitle\toriginal_title\tremixed_by\talbum\talbum_artist\ttrack_number\ttotal_tracks\tdisc_number\ttotal_discs\tdate\tgenre\tstyle\tbpm\tlabel\tcatalog_number\tduration_seconds\tisrc\tcodec\tbitrate\ttag_fingerprint\textra_metadata_json";
 
@@ -43,10 +43,12 @@ struct Record {
     std::string bitrate;
     std::string tag_fingerprint;
     std::string extra_metadata_json;
+    std::string metadata_vectors_json;
 };
 
 bool is_core_metadata_name(std::string_view name);
 std::string canonical_extra_metadata_json(std::vector<MetadataEntry> fields);
+std::string canonical_metadata_vectors_json(std::vector<MetadataEntry> fields);
 std::string sanitize_tsv(std::string_view value);
 std::string identity_key(std::string_view path, std::uint32_t subsong);
 std::string fingerprint_for(const Record& record);
