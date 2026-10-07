@@ -127,6 +127,36 @@ std::string canonical_extra_metadata_json(std::vector<MetadataEntry> fields) {
     return out;
 }
 
+std::string canonical_metadata_vectors_json(std::vector<MetadataEntry> fields) {
+    fields.erase(std::remove_if(fields.begin(), fields.end(), [](const MetadataEntry& field) {
+        return field.name.empty();
+    }), fields.end());
+
+    std::stable_sort(fields.begin(), fields.end(), [](const MetadataEntry& a, const MetadataEntry& b) {
+        const std::string af = ascii_fold(a.name);
+        const std::string bf = ascii_fold(b.name);
+        if (af != bf) return af < bf;
+        return a.name < b.name;
+    });
+
+    std::string out = "[";
+    for (std::size_t fieldIndex = 0; fieldIndex < fields.size(); ++fieldIndex) {
+        if (fieldIndex) out.push_back(',');
+        const auto& field = fields[fieldIndex];
+        out += "{\"name\":\"";
+        out += json_escape(field.name);
+        out += "\",\"values\":[";
+        for (std::size_t valueIndex = 0; valueIndex < field.values.size(); ++valueIndex) {
+            if (valueIndex) out.push_back(',');
+            out.push_back('"');
+            out += json_escape(field.values[valueIndex]);
+            out.push_back('"');
+        }
+        out += "]}";
+    }
+    out.push_back(']');
+    return out;
+}
 std::string sanitize_tsv(std::string_view value) {
     std::string out;
     out.reserve(value.size());
