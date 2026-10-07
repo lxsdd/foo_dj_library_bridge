@@ -34,7 +34,7 @@ int main() {
     assert(extra.find("GENRE") == std::string::npos);
     assert(extra.find('\n') == std::string::npos);
     assert(extra.find('\t') == std::string::npos);
-    assert(vectors == vectors == R"([{"name":"CUSTOM_TAG","values":["Bar"]},{"name":"custom_tag","values":["Foo"]},{"name":"EMPTY","values":[""]},{"name":"GENRE","values":["House"]},{"name":"MOOD","values":["Euphoric","Dark"]},{"name":"Quoted","values":["A\"B","Line\nBreak"]}])");
+    assert(vectors == R"([{"name":"CUSTOM_TAG","values":["Bar"]},{"name":"custom_tag","values":["Foo"]},{"name":"EMPTY","values":[""]},{"name":"GENRE","values":["House"]},{"name":"MOOD","values":["Euphoric","Dark"]},{"name":"Quoted","values":["A\"B","Line\nBreak"]}])");
     assert(canonical_metadata_vectors_json({{"ARTIST", {"A", "A", ""}}, {"artist", {"B"}}}) == R"([{"name":"ARTIST","values":["A","A",""]},{"name":"artist","values":["B"]}])");
 
     Record r;
