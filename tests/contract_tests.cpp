@@ -10,9 +10,9 @@
 int main() {
     using namespace djbridge;
 
-    assert(kSchemaVersion == 2);
-    assert(count_columns(kHeader) == 25);
-    assert(kHeader.ends_with("\textra_metadata_json"));
+    assert(kSchemaVersion == 3);
+    assert(count_columns(kHeader) == 26);
+    assert(kHeader.ends_with("\textra_metadata_json\tmetadata_vectors_json"));
     assert(sanitize_tsv("A\tB\nC\rD") == "A B C D");
     assert(is_core_metadata_name("GENRE"));
     assert(is_core_metadata_name("genre"));
@@ -34,6 +34,12 @@ int main() {
     assert(extra.find('\n') == std::string::npos);
     assert(extra.find('\t') == std::string::npos);
 
+    const std::string vectors = canonical_metadata_vectors_json(metadata);
+    assert(vectors == R"([{"name":"CUSTOM_TAG","values":["Bar"]},{"name":"custom_tag","values":["Foo"]},{"name":"EMPTY","values":[""]},{"name":"GENRE","values":["House"]},{"name":"MOOD","values":["Euphoric","Dark"]},{"name":"Quoted","values":["A\"B","Line\nBreak"]}])");
+    assert(canonical_metadata_vectors_json({}) == "[]");
+    assert(vectors.find("\\n") != std::string::npos);
+    assert(vectors.find('\n') == std::string::npos);
+
     Record r;
     r.path = "C:\\Music\\test.flac";
     r.subsong = 2;
@@ -45,10 +51,11 @@ int main() {
     r.codec = "FLAC";
     r.bitrate = "900";
     r.extra_metadata_json = extra;
+    r.metadata_vectors_json = vectors;
     r.tag_fingerprint = fingerprint_for(r);
 
     const auto line = to_tsv_line(r);
-    assert(count_columns(line) == 25);
+    assert(count_columns(line) == 26);
     assert(r.tag_fingerprint.size() == 16);
 
     Record r2 = r;
@@ -57,6 +64,9 @@ int main() {
     assert(fingerprint_for(r2) != r.tag_fingerprint);
     r2 = r;
     r2.extra_metadata_json = R"({"MOOD":["Calm"]})";
+    assert(fingerprint_for(r2) != r.tag_fingerprint);
+    r2 = r;
+    r2.metadata_vectors_json = R"([{"name":"ARTIST","values":["Different"]}])";
     assert(fingerprint_for(r2) != r.tag_fingerprint);
 
     const auto out = std::filesystem::current_path() / "contract-test.tsv.gz";
