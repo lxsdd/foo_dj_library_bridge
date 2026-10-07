@@ -184,14 +184,14 @@ std::string identity_key(std::string_view path, std::uint32_t subsong) {
 std::string fingerprint_for(const Record& record) {
     std::uint64_t hash = 14695981039346656037ULL;
     const std::string subsong = u32_to_string(record.subsong);
-    const std::array<std::string_view, 24> values = {
+    const std::array<std::string_view, 25> values = {
         record.path, subsong, record.artist, record.artists,
         record.title, record.original_title, record.remixed_by, record.album,
         record.album_artist, record.track_number, record.total_tracks,
         record.disc_number, record.total_discs, record.date, record.genre,
         record.style, record.bpm, record.label, record.catalog_number,
         record.duration_seconds, record.isrc, record.codec, record.bitrate,
-        record.extra_metadata_json
+        record.extra_metadata_json, record.metadata_vectors_json
     };
     for (auto value : values) fnv_append(hash, value);
 
