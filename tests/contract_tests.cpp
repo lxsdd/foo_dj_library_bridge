@@ -10,9 +10,9 @@
 int main() {
     using namespace djbridge;
 
-    assert(kSchemaVersion == 2);
-    assert(count_columns(kHeader) == 25);
-    assert(kHeader.ends_with("\textra_metadata_json"));
+    assert(kSchemaVersion == 3);
+    assert(count_columns(kHeader) == 26);
+    assert(kHeader.ends_with("\textra_metadata_json\tmetadata_vectors_json"));
     assert(sanitize_tsv("A\tB\nC\rD") == "A B C D");
     assert(is_core_metadata_name("GENRE"));
     assert(is_core_metadata_name("genre"));
@@ -28,11 +28,14 @@ int main() {
         {"Quoted", {"A\"B", "Line\nBreak"}}
     };
     const std::string extra = canonical_extra_metadata_json(metadata);
+    const std::string vectors = canonical_metadata_vectors_json(metadata);
     assert(extra == R"({"CUSTOM_TAG":["Bar","Foo"],"MOOD":["Euphoric","Dark"],"Quoted":["A\"B","Line\nBreak"]})");
     assert(canonical_extra_metadata_json({}) == "{}");
     assert(extra.find("GENRE") == std::string::npos);
     assert(extra.find('\n') == std::string::npos);
     assert(extra.find('\t') == std::string::npos);
+    assert(vectors == R"([{\"name\":\"custom_tag\",\"values\":[\"Foo\"]},{\"name\":\"CUSTOM_TAG\",\"values\":[\"Bar\"]},{\"name\":\"EMPTY\",\"values\":[\"\"]},{\"name\":\"GENRE\",\"values\":[\"House\"]},{\"name\":\"MOOD\",\"values\":[\"Euphoric\",\"Dark\"]},{\"name\":\"Quoted\",\"values\":[\"A\\\"B\",\"Line\\nBreak\"]}])");
+    assert(canonical_metadata_vectors_json({{"ARTIST", {"A", "A", ""}}, {"artist", {"B"}}}) == R"([{\"name\":\"ARTIST\",\"values\":[\"A\",\"A\",\"\"]},{\"name\":\"artist\",\"values\":[\"B\"]}])");
 
     Record r;
     r.path = "C:\\Music\\test.flac";
@@ -45,10 +48,11 @@ int main() {
     r.codec = "FLAC";
     r.bitrate = "900";
     r.extra_metadata_json = extra;
+    r.metadata_vectors_json = vectors;
     r.tag_fingerprint = fingerprint_for(r);
 
     const auto line = to_tsv_line(r);
-    assert(count_columns(line) == 25);
+    assert(count_columns(line) == 26);
     assert(r.tag_fingerprint.size() == 16);
 
     Record r2 = r;
