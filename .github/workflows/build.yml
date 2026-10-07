@@ -1,12 +1,14 @@
 name: build
 on:
   push:
+    branches: [ main ]
     paths-ignore:
       - 'README.md'
       - 'ARCHITECTURE.md'
       - 'AGENTS.md'
       - 'docs/**'
   pull_request:
+    branches: [ main ]
     paths-ignore:
       - 'README.md'
       - 'ARCHITECTURE.md'
@@ -57,6 +59,7 @@ jobs:
   windows-build:
     runs-on: windows-latest
     strategy:
+      fail-fast: true
       matrix:
         platform: [Win32, x64]
     steps:
