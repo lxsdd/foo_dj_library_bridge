@@ -17,10 +17,10 @@ errors = []
 def require(ok, message):
     if not ok: errors.append(message)
 
-expected_header = "path\tsubsong\tartist\tartists\ttitle\toriginal_title\tremixed_by\talbum\talbum_artist\ttrack_number\ttotal_tracks\tdisc_number\ttotal_discs\tdate\tgenre\tstyle\tbpm\tlabel\tcatalog_number\tduration_seconds\tisrc\tcodec\tbitrate\ttag_fingerprint\textra_metadata_json"
-require(expected_header.replace("\t", "\\t") in contract, "schema-v2 header changed")
-require('kSchemaVersion = 2' in contract, "schema version is not 2")
-require('"0.1.0-rc3"' in bridge, "component version is not 0.1.0-rc3")
+expected_header = "path\tsubsong\tartist\tartists\ttitle\toriginal_title\tremixed_by\talbum\talbum_artist\ttrack_number\ttotal_tracks\tdisc_number\ttotal_discs\tdate\tgenre\tstyle\tbpm\tlabel\tcatalog_number\tduration_seconds\tisrc\tcodec\tbitrate\ttag_fingerprint\textra_metadata_json\tmetadata_vectors_json"
+require(expected_header.replace("\t", "\\t") in contract, "schema-v3 header changed")
+require('kSchemaVersion = 3' in contract, "schema version is not 3")
+require('"0.1.0-rc4"' in bridge, "component version is not 0.1.0-rc4")
 require('VALIDATE_COMPONENT_FILENAME("foo_dj_library_bridge.dll")' in bridge, "component filename validation missing")
 require('library_manager::get()->get_all_items(items)' in bridge, "full Media Library enumeration missing")
 for callback in ["on_items_added", "on_items_removed", "on_items_modified", "on_items_modified_v2", "on_library_initialized"]:
@@ -30,7 +30,7 @@ require('get_info_ref()' in bridge, "cached metadata read path missing")
 require('get_full_info_ref' not in bridge, "component must not force-read media files")
 require('meta_enum_name' in bridge and 'meta_enum_value_count' in bridge and 'meta_enum_value' in bridge, "generic metadata enumeration missing")
 require('canonical_extra_metadata_json' in bridge, "generic metadata serialization missing")
-require('extra_metadata_json' in contract and 'extra_metadata_json' in contract_cpp, "schema-v2 extra metadata field missing")
+require('extra_metadata_json' in contract and 'extra_metadata_json' in contract_cpp, "schema-v3 extra metadata field missing")\nrequire('metadata_vectors_json' in contract and 'metadata_vectors_json' in contract_cpp, "schema-v3 metadata vectors field missing")\nrequire('canonical_metadata_vectors_json' in bridge, "lossless metadata vector serialization missing")
 require('core_api::get_profile_path()' in bridge, "foobar profile path API is not used")
 require('g_get_native_path(core_api::get_profile_path()' in bridge, "profile path is not converted through the SDK filesystem helper")
 require('L"foo_dj_library_bridge"' in bridge, "profile-local component data directory missing")
@@ -75,8 +75,8 @@ if errors:
 print("STATIC AUDIT PASS")
 print("- read-only foobar SDK adapter")
 print("- profile-local per-instance storage via core_api::get_profile_path()")
-print("- source metadata in schema-v2 state")
-print("- exact schema-v2 payload contract with one generic metadata column")
+print("- source metadata in schema-v3 state")
+print("- schema-v3 payload preserves schema-v2 prefix and appends exact metadata vectors")
 print("- arbitrary metadata enumeration without core-field duplication")
 print("- C++20 / target v81 / VS2022 v143 build path")
 print("- atomic complete=0 -> payload -> complete=1 publication")
