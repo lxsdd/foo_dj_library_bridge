@@ -44,14 +44,14 @@ jobs:
           with gzip.open('contract-test.tsv.gz','rt',encoding='utf-8') as f:
               lines=f.read().splitlines()
           assert len(lines)==4, len(lines)
-          assert all(len(x.split('\t'))==25 for x in lines)
-          assert lines[0].endswith('\textra_metadata_json')
+          assert all(len(x.split('\t'))==26 for x in lines)
+          assert lines[0].endswith('\textra_metadata_json\tmetadata_vectors_json')
           with gzip.open('large-gzip-test.gz','rb') as f:
               payload=f.read()
           expected=bytearray(b'x'*200000)
           expected[65534]=ord('A'); expected[65535]=ord('B'); expected[131069]=ord('C')
           assert payload == expected
-          print('PASS: independent gzip decode, exact 25-column schema-v2 contract, multi-block boundary')
+          print('PASS: independent gzip decode, exact 26-column schema-v3 contract, multi-block boundary')
           PY
 
   windows-build:
