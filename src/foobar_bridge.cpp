@@ -21,7 +21,7 @@
 
 DECLARE_COMPONENT_VERSION(
     "DJ Library Bridge",
-    "0.1.0-rc3",
+    "0.1.0-rc4",
     "Read-only Media Library bridge for DJ Library.\n"
     "Exports an atomic snapshot into this foobar2000 profile.\n"
     "Does not modify audio files, tags, or foobar2000 private databases."
@@ -133,7 +133,7 @@ BridgeEndpoint bridge_endpoint_for_current_profile() {
     endpoint.source.profile_path = native_profile.c_str();
     endpoint.source.id = stable_source_id(endpoint.source.profile_path);
     endpoint.source.name = wide_to_utf8(source_name_w);
-    endpoint.source.producer_version = "0.1.0-rc3";
+    endpoint.source.producer_version = "0.1.0-rc4";
     return endpoint;
 }
 
