@@ -82,6 +82,37 @@ bool is_core_metadata_name(std::string_view name) {
     });
 }
 
+std::string canonical_metadata_vectors_json(std::vector<MetadataEntry> fields) {
+    fields.erase(std::remove_if(fields.begin(), fields.end(), [](const MetadataEntry& field) {
+        return field.name.empty();
+    }), fields.end());
+
+    std::stable_sort(fields.begin(), fields.end(), [](const MetadataEntry& a, const MetadataEntry& b) {
+        const std::string af = ascii_fold(a.name);
+        const std::string bf = ascii_fold(b.name);
+        if (af != bf) return af < bf;
+        return a.name < b.name;
+    });
+
+    std::string out = "[";
+    for (std::size_t fieldIndex = 0; fieldIndex < fields.size(); ++fieldIndex) {
+        if (fieldIndex) out.push_back(',');
+        const auto& field = fields[fieldIndex];
+        out += "{\"name\":\"";
+        out += json_escape(field.name);
+        out += "\",\"values\":[";
+        for (std::size_t valueIndex = 0; valueIndex < field.values.size(); ++valueIndex) {
+            if (valueIndex) out.push_back(',');
+            out.push_back('"');
+            out += json_escape(field.values[valueIndex]);
+            out.push_back('"');
+        }
+        out += "]}";
+    }
+    out.push_back(']');
+    return out;
+}
+
 std::string canonical_extra_metadata_json(std::vector<MetadataEntry> fields) {
     fields.erase(std::remove_if(fields.begin(), fields.end(), [](const MetadataEntry& field) {
         if (field.name.empty() || is_core_metadata_name(field.name)) return true;
@@ -154,14 +185,14 @@ std::string identity_key(std::string_view path, std::uint32_t subsong) {
 std::string fingerprint_for(const Record& record) {
     std::uint64_t hash = 14695981039346656037ULL;
     const std::string subsong = u32_to_string(record.subsong);
-    const std::array<std::string_view, 24> values = {
+    const std::array<std::string_view, 25> values = {
         record.path, subsong, record.artist, record.artists,
         record.title, record.original_title, record.remixed_by, record.album,
         record.album_artist, record.track_number, record.total_tracks,
         record.disc_number, record.total_discs, record.date, record.genre,
         record.style, record.bpm, record.label, record.catalog_number,
         record.duration_seconds, record.isrc, record.codec, record.bitrate,
-        record.extra_metadata_json
+        record.extra_metadata_json, record.metadata_vectors_json
     };
     for (auto value : values) fnv_append(hash, value);
 
@@ -171,7 +202,7 @@ std::string fingerprint_for(const Record& record) {
 }
 
 std::string to_tsv_line(const Record& record) {
-    std::array<std::string, 25> values = {
+    std::array<std::string, 26> values = {
         sanitize_tsv(record.path), std::to_string(record.subsong),
         sanitize_tsv(record.artist), sanitize_tsv(record.artists),
         sanitize_tsv(record.title), sanitize_tsv(record.original_title),
@@ -184,7 +215,8 @@ std::string to_tsv_line(const Record& record) {
         sanitize_tsv(record.catalog_number), sanitize_tsv(record.duration_seconds),
         sanitize_tsv(record.isrc), sanitize_tsv(record.codec),
         sanitize_tsv(record.bitrate), sanitize_tsv(record.tag_fingerprint),
-        sanitize_tsv(record.extra_metadata_json)
+        sanitize_tsv(record.extra_metadata_json),
+        sanitize_tsv(record.metadata_vectors_json)
     };
 
     std::string out;
