@@ -34,8 +34,8 @@ int main() {
     assert(extra.find("GENRE") == std::string::npos);
     assert(extra.find('\n') == std::string::npos);
     assert(extra.find('\t') == std::string::npos);
-    assert(vectors == R"([{\"name\":\"custom_tag\",\"values\":[\"Foo\"]},{\"name\":\"CUSTOM_TAG\",\"values\":[\"Bar\"]},{\"name\":\"EMPTY\",\"values\":[\"\"]},{\"name\":\"GENRE\",\"values\":[\"House\"]},{\"name\":\"MOOD\",\"values\":[\"Euphoric\",\"Dark\"]},{\"name\":\"Quoted\",\"values\":[\"A\\\"B\",\"Line\\nBreak\"]}])");
-    assert(canonical_metadata_vectors_json({{"ARTIST", {"A", "A", ""}}, {"artist", {"B"}}}) == R"([{\"name\":\"ARTIST\",\"values\":[\"A\",\"A\",\"\"]},{\"name\":\"artist\",\"values\":[\"B\"]}])");
+    assert(vectors == vectors == R"([{"name":"CUSTOM_TAG","values":["Bar"]},{"name":"custom_tag","values":["Foo"]},{"name":"EMPTY","values":[""]},{"name":"GENRE","values":["House"]},{"name":"MOOD","values":["Euphoric","Dark"]},{"name":"Quoted","values":["A\"B","Line\nBreak"]}])");
+    assert(canonical_metadata_vectors_json({{"ARTIST", {"A", "A", ""}}, {"artist", {"B"}}}) == R"([{"name":"ARTIST","values":["A","A",""]},{"name":"artist","values":["B"]}])");
 
     Record r;
     r.path = "C:\\Music\\test.flac";
@@ -61,6 +61,9 @@ int main() {
     assert(fingerprint_for(r2) != r.tag_fingerprint);
     r2 = r;
     r2.extra_metadata_json = R"({"MOOD":["Calm"]})";
+    assert(fingerprint_for(r2) != r.tag_fingerprint);
+    r2 = r;
+    r2.metadata_vectors_json = R"([{"name":"ARTIST","values":["Artist","Guest"]}])";
     assert(fingerprint_for(r2) != r.tag_fingerprint);
 
     const auto out = std::filesystem::current_path() / "contract-test.tsv.gz";
