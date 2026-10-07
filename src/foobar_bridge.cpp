@@ -70,7 +70,7 @@ std::vector<djbridge::MetadataEntry> collect_metadata(const file_info& info) {
         entry.values.reserve(valueCount);
         for (t_size valueIndex = 0; valueIndex < valueCount; ++valueIndex) {
             const char* value = info.meta_enum_value(fieldIndex, valueIndex);
-            if (value && *value) entry.values.emplace_back(value);
+            if (value) entry.values.emplace_back(value);
         }
         fields.push_back(std::move(entry));
     }
@@ -165,7 +165,9 @@ djbridge::Record make_record(const metadb_handle_ptr& handle) {
     r.isrc = meta_join(info, "ISRC");
     r.codec = info_first_of(info, {"codec", "codec_profile"});
     r.bitrate = info_first_of(info, {"bitrate", "bitrate_dynamic"});
-    r.extra_metadata_json = djbridge::canonical_extra_metadata_json(collect_metadata(info));
+    const auto metadata = collect_metadata(info);
+    r.extra_metadata_json = djbridge::canonical_extra_metadata_json(metadata);
+    r.metadata_vectors_json = djbridge::canonical_metadata_vectors_json(metadata);
     r.tag_fingerprint = djbridge::fingerprint_for(r);
     return r;
 }
