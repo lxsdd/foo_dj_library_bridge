@@ -9,11 +9,6 @@ on:
       - 'docs/**'
   pull_request:
     branches: [ main ]
-    paths-ignore:
-      - 'README.md'
-      - 'ARCHITECTURE.md'
-      - 'AGENTS.md'
-      - 'docs/**'
   workflow_call:
   workflow_dispatch:
 
