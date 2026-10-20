@@ -12,7 +12,8 @@ $expected = @(
     @{name='g5-coalesced';  generation=5; count=3;    titles=@('Alpha (updated)','Beta','Burst final')},
     @{name='g6-restart';    generation=6; count=3;    titles=@('Alpha (updated)','Beta','Burst final')},
     @{name='g7-delete';     generation=7; count=0;    titles=@()},
-    @{name='g8-many';       generation=8; count=1024; titles=@()}
+    @{name='g8-many';       generation=8; count=1024; titles=@()},
+    @{name='g10-recovery';  generation=10;count=1;    titles=@('Recovered after failure')}
 )
 $headerFields = @(
     'path','subsong','artist','artists','title','original_title','remixed_by',
@@ -95,4 +96,23 @@ foreach ($stage in $expected) {
     $previousFingerprints = $fingerprints
     Write-Host "PUBLISHER_GZIP_STAGE_$($stage.generation)=PASS count=$($stage.count)"
 }
+# Failure-injection stage deliberately commits an incomplete generation-9
+# state and does not overwrite generation-8's last valid gzip bytes.
+$failDir = Join-Path (Join-Path $TestRoot 'stages') 'g9-fail-closed'
+$failedLines = @(Get-Content -LiteralPath (Join-Path $failDir 'bridge-state.tsv') -Encoding UTF8)
+if ($failedLines -cnotcontains ("generation" + [char]9 + "9") -or
+    $failedLines -cnotcontains ("complete" + [char]9 + "0") -or
+    $failedLines -cnotcontains ("item_count" + [char]9 + "1")) {
+    throw 'Injected Publisher write failure did not publish complete=0'
+}
+$oldGzip = Join-Path (Join-Path (Join-Path $TestRoot 'stages') 'g8-many') 'digital-items.tsv.gz'
+$failedGzip = Join-Path $failDir 'digital-items.tsv.gz'
+$oldHash = (Get-FileHash -LiteralPath $oldGzip -Algorithm SHA256).Hash
+$failedHash = (Get-FileHash -LiteralPath $failedGzip -Algorithm SHA256).Hash
+if ($oldHash -cne $failedHash) { throw 'Interrupted new publish destroyed the previous gzip payload' }
+$err = Get-Content -Raw -LiteralPath (Join-Path $failDir 'bridge-error.txt')
+if ($err -notmatch 'publish failed') { throw 'Publisher failure did not surface an error state' }
+Write-Host 'PUBLISHER_FAIL_CLOSED_INCOMPLETE_STATE=PASS'
+Write-Host 'PUBLISHER_LAST_GOOD_PAYLOAD_UNCHANGED=PASS'
+Write-Host 'PUBLISHER_RECOVERY_COMPLETE_10=PASS'
 Write-Host 'PUBLISHER_SNAPSHOT_INTEGRITY=PASS'
