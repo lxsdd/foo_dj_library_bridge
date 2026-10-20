@@ -64,7 +64,7 @@ jobs:
         shell: pwsh
         run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset v143
       - name: Upload DLL
-        if: github.event_name != 'pull_request'
+        if: false # Temporary rights gate: build and test only
         uses: actions/upload-artifact@v7
         with:
           name: foo_dj_library_bridge-${{ matrix.platform }}
@@ -74,7 +74,7 @@ jobs:
 
   package-component:
     name: Package verified foobar2000 component
-    if: github.event_name != 'pull_request'
+    if: false # Component package publication disabled
     needs:
       - contract-tests
       - windows-build
@@ -102,6 +102,7 @@ jobs:
             -Version $version `
             -Commit '${{ github.sha }}'
       - name: Upload qualified component candidate
+        if: false # Explicit second-line artifact block
         uses: actions/upload-artifact@v7
         with:
           name: foo_dj_library_bridge-component-${{ github.sha }}
