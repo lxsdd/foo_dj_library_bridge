@@ -77,6 +77,10 @@ function Read-ActualSnapshot {
  }
  return @{generation=[long]$state.generation; rows=$rows}
 }
+# The original monitored folder is already committed and verified by the
+# parent host callback test. Configure CUE indexing in a separate Preferences
+# invocation, avoiding a combined transaction that flakes on Win32.
+& (Join-Path $PSScriptRoot 'enable-cue-indexing-disposable.ps1') -ProfileDirectory $ProfileDirectory -Architecture $Architecture
 New-CueBackingWave
 Write-Host "BRIDGE_CUE_BACKING_WAV_$Architecture=PASS"
 # A caller must wait for the genuine Media Library ADD of the standalone
