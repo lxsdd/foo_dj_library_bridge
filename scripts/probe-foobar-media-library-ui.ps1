@@ -35,6 +35,48 @@ $windows = @($root.FindAll(
         [System.Windows.Automation.Condition]::TrueCondition) |
     Where-Object { $_.Current.ProcessId -eq $foobarPid })
 Write-Host "FOOBAR_UI_DIAGNOSTIC_$Architecture=TOP_WINDOWS $($windows.Count)"
+# Close the default first-run appearance dialog only inside the isolated host.
+# WM_COMMAND/IDOK is equivalent to clicking its OK control (UI Automation id 1).
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class FoobarIsolatedUiMessage {
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern IntPtr SendMessage(IntPtr hwnd, UInt32 msg, IntPtr wp, IntPtr lp);
+}
+'@ -ErrorAction Stop
+$uiName = [System.Windows.Automation.AutomationElement]::NameProperty
+$welcomeCond = [System.Windows.Automation.PropertyCondition]::new($uiName, 'Quick Appearance Setup')
+$firstWindow = $windows | Select-Object -First 1
+if ($null -ne $firstWindow) {
+    $welcome = $firstWindow.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $welcomeCond)
+    if ($null -ne $welcome) {
+        $hwnd = [IntPtr]::new([int]$welcome.Current.NativeWindowHandle)
+        if ($hwnd -eq [IntPtr]::Zero) { throw 'Quick Appearance Setup did not expose its isolated HWND.' }
+        [void][FoobarIsolatedUiMessage]::SendMessage($hwnd,0x111,[IntPtr]::new(1),[IntPtr]::Zero)
+        Start-Sleep -Milliseconds 450
+        $afterWelcome = $firstWindow.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $welcomeCond)
+        if ($null -ne $afterWelcome) { throw 'Isolated Quick Appearance Setup did not close on IDOK.' }
+        Write-Host "FOOBAR_UI_FIRST_RUN_SETUP_$Architecture=PASS"
+    }
+}
+# Built-in /config asks the running, isolated foobar instance to display Preferences.
+$hostExe = Join-Path (Split-Path -Parent $profile) 'foobar2000.exe'
+if (-not (Test-Path -LiteralPath $hostExe -PathType Leaf)) {
+    throw 'Disposable installed foobar executable was not found.'
+}
+$preferencesCommand = Start-Process -FilePath $hostExe -WorkingDirectory (Split-Path -Parent $hostExe) -ArgumentList '/config' -PassThru
+if (-not $preferencesCommand.WaitForExit(8000)) {
+    Stop-Process -Id $preferencesCommand.Id -Force -ErrorAction SilentlyContinue
+    throw 'Isolated /config delegation timed out.'
+}
+Start-Sleep -Milliseconds 450
+$windows = @($root.FindAll(
+        [System.Windows.Automation.TreeScope]::Children,
+        [System.Windows.Automation.Condition]::TrueCondition) |
+    Where-Object { $_.Current.ProcessId -eq $foobarPid })
+Write-Host "FOOBAR_UI_AFTER_CONFIG_$Architecture=TOP_WINDOWS $($windows.Count)"
+
 $printed = 0
 function Visit-Control {
     param([System.Windows.Automation.AutomationElement]$element,[int]$depth)
