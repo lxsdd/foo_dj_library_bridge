@@ -48,6 +48,17 @@ public static class FoobarIsolatedUiMessage {
     public static extern IntPtr SendMessageText(IntPtr hwnd, UInt32 msg, IntPtr wp, string lp);
     [DllImport("user32.dll", EntryPoint="SendMessageW", CharSet=CharSet.Unicode)]
     public static extern IntPtr GetEditText(IntPtr hwnd, UInt32 msg, IntPtr capacity, [Out] StringBuilder text);
+    [DllImport("user32.dll")]
+    public static extern bool SetForegroundWindow(IntPtr hwnd);
+    [DllImport("user32.dll")]
+    public static extern bool SetCursorPos(Int32 x, Int32 y);
+    [DllImport("user32.dll")]
+    public static extern void mouse_event(UInt32 flags, UInt32 dx, UInt32 dy, UInt32 data, UIntPtr info);
+    [DllImport("user32.dll")]
+    public static extern void keybd_event(Byte virtualKey, Byte scan, UInt32 flags, UIntPtr info);
+    [DllImport("user32.dll")]
+    public static extern UInt32 GetWindowThreadProcessId(IntPtr hwnd, out UInt32 processId);
+
 }
 '@ -ErrorAction Stop
 $uiName = [System.Windows.Automation.AutomationElement]::NameProperty
