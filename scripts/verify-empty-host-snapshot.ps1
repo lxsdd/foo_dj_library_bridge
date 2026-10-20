@@ -62,7 +62,15 @@ while ([DateTime]::UtcNow -lt $deadline) {
                 }
                 if ($state.schema_version -ne '3') { throw "Unexpected Bridge schema: $($state.schema_version)" }
                 if ($state.item_count -ne '0') { throw "Unexpected non-empty disposable Media Library: $($state.item_count)" }
-                if ($state.generation -ne [string]$ProbeIteration) { throw "Unexpected generation for host boot $ProbeIteration; got $($state.generation)" }
+                $actualGeneration = [uint64]0
+                if (-not [uint64]::TryParse($state.generation, [ref]$actualGeneration)) { throw 'Non-numeric runtime generation' }
+                if ($actualGeneration -lt [uint64]$ProbeIteration) {
+                    # Previous generation remains complete until the async publisher commits the new one.
+                    $observed = "Waiting for generation $ProbeIteration (currently $actualGeneration)"
+                    Start-Sleep -Milliseconds 500
+                    continue
+                }
+                if ($actualGeneration -ne [uint64]$ProbeIteration) { throw "Unexpected runtime generation: $actualGeneration" }
                 if ($state.producer_version -ne '0.1.0-rc4') { throw "Wrong Bridge producer: $($state.producer_version)" }
                 if ($state.producer_pid -notmatch '^[1-9][0-9]*$') { throw 'Missing live producer PID' }
 
