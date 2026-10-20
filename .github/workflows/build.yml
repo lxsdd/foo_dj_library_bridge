@@ -26,6 +26,8 @@ jobs:
       - uses: actions/checkout@v7
       - name: Static safety/contract audit
         run: python3 scripts/static_audit.py
+      - name: Enforce public artifact and release licensing hold
+        run: python3 scripts/verify-public-artifact-hold.py
       - name: Build pure contract tests with GCC
         run: g++ -std=c++20 -Wall -Wextra -Werror tests/contract_tests.cpp src/bridge_contract.cpp src/gzip_stored.cpp -o contract-tests
       - name: Run GCC contract tests
