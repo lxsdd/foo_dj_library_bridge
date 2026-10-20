@@ -119,3 +119,26 @@ The test does not modify either product, foobar, tags or real library;
 no package/artifact upload or paid Actions runner. This synthetic
 integration does not prove the DLL works inside a real foobar process
 or the user's source-specific 54k-track snapshot.
+
+## Library-scale regression (synthetic, not production throughput)
+
+The same original Bridge C++ contract and gzip writer also generate
+**54,129 completely fictional schema-v3 rows**, with deterministic
+distinct synthetic paths and subsongs, tags, fingerprints and canonical
+metadata-vector arrays. A C++-produced gzip stream and matching
+throwaway commit-state file are checked by the *actual unchanged*
+DJ Library `BridgeSnapshotReader.Inspect(..., true)` and
+`LoadItems(...)` on public Linux CI.
+
+The test asserts the exact count and **every record's** original C++
+path/subsong, artist, album, title, genre, BPM, codec and duration; all
+54,129 identities and producer-derived 16-character fingerprints must
+be distinct. The first and last rows additionally test correct
+multi-valued `MOOD`, empty metadata strings and `ARTIST` vectors.
+It reports scan and full read times for diagnosis but does not use
+a hardware-specific benchmark threshold.
+
+The scale is chosen to approximate a typical large foobar library;
+this is **not** a measurement of the installed foobar Bridge producer,
+native component memory usage, Windows GUI performance or real
+metadata-network ingestion. No actual audio or user catalog is opened.

@@ -3,6 +3,7 @@
 // No installed foobar, audio, actual profile, network, or credentials are used.
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -113,6 +114,67 @@ namespace DJLibrary
                 (schema == 3 ? ", six canonical multivalue metadata vectors" : ""));
         }
 
+        private static void CheckLibraryScale(string root)
+        {
+            const int Expected = 54129;
+            string dir = Dir(root, "v3-large");
+            Stopwatch timer = Stopwatch.StartNew();
+            BridgeSnapshotStatus status = BridgeSnapshotReader.Inspect(dir, true);
+            long inspectMs = timer.ElapsedMilliseconds;
+            Must(status.Present && status.Compatible && status.Complete &&
+                status.SchemaVersion == 3 && status.VerifiedItemCount == Expected &&
+                status.DeclaredItemCount == Expected &&
+                status.SourceId == "ci-bridge-source-only",
+                "library-scale original C++ snapshot inspect count/schema/status");
+            List<DigitalItem> items = BridgeSnapshotReader.LoadItems(dir, status);
+            long endMs = timer.ElapsedMilliseconds;
+            Must(items.Count == Expected, "large C++ producer item loss");
+            var identities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var fingerprints = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = 0; i < Expected; i++)
+            {
+                DigitalItem item = items[i];
+                string expectedPath = @"X:\SYNTHETIC_NO_REAL_MUSIC\Artist" +
+                    (i % 400).ToString(CultureInfo.InvariantCulture) +
+                    @"\Fixture Track " + i.ToString(CultureInfo.InvariantCulture) + ".flac";
+                Must(item.ItemId == i + 1 && item.Subsong == i % 3 &&
+                    item.Path == expectedPath &&
+                    item.Artist == "CI Synthetic Artist" &&
+                    item.Title == "Fixture Track " + i.ToString(CultureInfo.InvariantCulture) &&
+                    item.Album == "Fixture Album " + (i / 12).ToString(CultureInfo.InvariantCulture) &&
+                    item.Genre == "Trance" && item.Bpm == 128.5 &&
+                    item.DurationSeconds == 302.25 && item.Codec == "FLAC",
+                    "large original producer identity/data mismatch index=" + i);
+                Must(identities.Add(item.Path + "\n" +
+                    item.Subsong.ToString(CultureInfo.InvariantCulture)) &&
+                    item.Fingerprint != null && item.Fingerprint.Length == 16 &&
+                    fingerprints.Add(item.Fingerprint),
+                    "large identity collision or duplicate original fingerprint index=" + i);
+                if (i == 0 || i == Expected - 1)
+                {
+                    using (JsonDocument json = JsonDocument.Parse(item.MetadataVectorsJson))
+                    {
+                        JsonElement values = json.RootElement;
+                        Must(values.ValueKind == JsonValueKind.Array && values.GetArrayLength() == 3,
+                            "large vectors count/shape");
+                        var keyed = values.EnumerateArray().ToDictionary(
+                            x => x.GetProperty("name").GetString(),
+                            x => x.GetProperty("values"));
+                        Must(keyed["MOOD"].GetArrayLength() == 2 &&
+                            keyed["MOOD"][0].GetString() == "Euphoric" &&
+                            keyed["MOOD"][1].GetString() == "Dark" &&
+                            keyed["EMPTY"][0].GetString() == "" &&
+                            keyed["ARTIST"][1].GetString() == "Guest",
+                            "large lossless core/multivalue metadata mismatch");
+                    }
+                }
+            }
+            Console.WriteLine("PASS C++ producer -> DJ Library original Bridge reader " +
+                Expected + " synthetic items, exact identities=" + identities.Count +
+                ", unique native fingerprints=" + fingerprints.Count +
+                ", inspect=" + inspectMs + "ms, inspect+load=" + endMs + "ms");
+        }
+
         private static void CheckRejected(string root, string fixtureName, bool expectIncomplete)
         {
             BridgeSnapshotStatus status = BridgeSnapshotReader.Inspect(Dir(root, fixtureName), true);
@@ -149,6 +211,7 @@ namespace DJLibrary
                 BridgeSnapshotReader.ValidateSchemaV3Contract();
                 CheckValid(root, 3);
                 CheckValid(root, 2);
+                CheckLibraryScale(root);
                 CheckRejected(root, "wrong-count", false);
                 CheckRejected(root, "incomplete", true);
                 CheckRejected(root, "future-schema", false);

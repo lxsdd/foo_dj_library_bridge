@@ -74,3 +74,29 @@ write("empty-vectors", empty_vectors)
 
 print(f"PASS generated real C++ producer v3 ({count} records) and v2 legacy fixtures "
       "plus seven intentionally invalid snapshots")
+
+
+# Full-size but strictly fictitious schema-v3 payload. This is generated
+# by the actual original C++ to_tsv_line/GzipStoredWriter contract, not
+# assembled by C# or exported from any installed foobar instance.
+LARGE_SRC = Path("contract-test-large-v3.tsv.gz")
+LARGE_COUNT = 54129
+if not LARGE_SRC.is_file():
+    raise RuntimeError("Original C++ large-producer fixture must be generated first")
+with gzip.open(LARGE_SRC, "rt", encoding="utf-8", newline="") as gz:
+    large_header = gz.readline().rstrip("\r\n").split("\t")
+    assert large_header == rows[0], "Large C++ producer header diverged from actual v3"
+    large_count = 0
+    for line in gz:
+        assert len(line.rstrip("\r\n").split("\t")) == 26, \
+            f"Wrong large C++ row shape at {large_count}"
+        large_count += 1
+assert large_count == LARGE_COUNT, f"Expected {LARGE_COUNT} C++-generated rows, got {large_count}"
+large_dir = ROOT / "v3-large"
+large_dir.mkdir(parents=True, exist_ok=True)
+(large_dir / "bridge-state.tsv").write_text(
+    state(schema=3, n=LARGE_COUNT), encoding="utf-8"
+)
+from shutil import copyfile
+copyfile(LARGE_SRC, large_dir / "digital-items.tsv.gz")
+print(f"PASS generated source-authentic large v3 snapshot with {LARGE_COUNT} synthetic tracks")

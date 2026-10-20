@@ -50,7 +50,11 @@ jobs:
           assert payload == expected
           print('PASS: independent gzip decode, exact 26-column schema-v3 contract, multi-block boundary')
           PY
-      - name: Generate actual C++ producer v3 and legacy-v2 verifier fixtures
+      - name: Generate 54,129 synthetic records with the original C++ Bridge writer
+        run: |
+          g++ -std=c++20 -O2 -Wall -Wextra -Werror tests/interop/GenerateLargeSnapshot.cpp src/bridge_contract.cpp src/gzip_stored.cpp -o large-producer
+          ./large-producer
+      - name: Generate actual C++ producer v3, legacy-v2 and large-scale verification fixtures
         run: python3 scripts/generate-snapshot-verifier-fixtures.py
       - name: Validate current v3, legacy v2, and fail-closed malformed snapshots
         shell: pwsh
