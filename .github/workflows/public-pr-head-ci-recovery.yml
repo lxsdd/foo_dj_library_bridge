@@ -1,0 +1,21 @@
+name: Public PR HEAD CI recovery
+
+# Only declared, currently open first-party PRs and existing read-only CI.
+# This is a scheduled fallback for bot-originated commits without PR checks.
+on:
+  schedule:
+    - cron: '35 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  actions: write
+
+jobs:
+  missing-pr-ci:
+    uses: lxsdd/dev-infrastructure-public/.github/workflows/dispatch-pr-head-ci.yml@eed379ee8ed8a478285b437176ab61e12cfff0ce
+    with:
+      pr_numbers: '7'
+      workflow_files: 'build.yml'
+      base_branch: main
