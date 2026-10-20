@@ -167,44 +167,6 @@ if ($prefWindows.Count -eq 1) {
                     Write-Host "FOOBAR_CUE_FILETYPES_EDIT_$Architecture=id:$editId type:$editType name:$editName"
                 }
                 Write-Host "FOOBAR_CUE_FILETYPES_EDIT_COUNT_$Architecture=$($editNodes.Count)"
-                # Only in the disposable official host, lift the observed
-                # factory *.CUE exclusion. Otherwise virtual CUE tracks cannot
-                # enter foobar's Media Library and cannot reach our callback.
-                $cueExclusions=@($editNodes | Where-Object {
-                    $_.Current.Name -ceq '*.CUE' })
-                if ($cueExclusions.Count -ne 1) {
-                    throw 'Official default *.CUE exclusion field not uniquely identifiable.'
-                }
-                $excludeHwnd=[IntPtr]::new([int]$cueExclusions[0].Current.NativeWindowHandle)
-                if ($excludeHwnd -eq [IntPtr]::Zero) { throw 'CUE exclusion field has no native Edit HWND.' }
-                $fieldOwner=[uint32]0
-                [void][FoobarIsolatedUiMessage]::GetWindowThreadProcessId(
-                    $excludeHwnd,[ref]$fieldOwner)
-                if ($fieldOwner -ne [uint32]$foobarPid) {
-                    throw 'Refusing to change non-foobar file-type exclusion control.'
-                }
-                $fieldProcess=Get-Process -Id $fieldOwner -ErrorAction Stop
-                if (-not [string]::Equals(
-                    [IO.Path]::GetFullPath($fieldProcess.Path),
-                    [IO.Path]::GetFullPath($hostExe),
-                    [StringComparison]::OrdinalIgnoreCase)) {
-                    throw 'File-type exclusion field is not owned by the disposable foobar executable.'
-                }
-                $before=[Text.StringBuilder]::new(512)
-                [void][FoobarIsolatedUiMessage]::GetEditText(
-                    $excludeHwnd,[uint32]0x000d,[IntPtr]::new(512),$before)
-                if ($before.ToString() -cne '*.CUE') {
-                    throw 'Native CUE exclusion did not match observed UI control.'
-                }
-                $changed=[FoobarIsolatedUiMessage]::SendMessageText(
-                    $excludeHwnd,[uint32]0x000c,[IntPtr]::Zero,'')
-                $after=[Text.StringBuilder]::new(512)
-                [void][FoobarIsolatedUiMessage]::GetEditText(
-                    $excludeHwnd,[uint32]0x000d,[IntPtr]::new(512),$after)
-                if ($changed -eq [IntPtr]::Zero -or $after.Length -ne 0) {
-                    throw 'Disposable Media Library *.CUE exclusion could not be cleared.'
-                }
-                Write-Host "FOOBAR_CUE_EXCLUSION_CLEAR_$Architecture=PASS temporary_profile_only"
                 $buttonCond = [System.Windows.Automation.PropertyCondition]::new(
                     [System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1234')
                 $button = $prefs.FindFirst(
