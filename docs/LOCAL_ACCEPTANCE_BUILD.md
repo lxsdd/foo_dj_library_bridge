@@ -51,6 +51,10 @@ erzeugt Manifest/Prüfsummen und schreibt zusammen mit der Komponente nur in
   Kompilierung sowie Manifest- und Paket-SHA-256-Verifikation.
 - Der Lauf hat **0 hochgeladene GitHub-Actions-Artefakte**; die DLL blieb
   ausschließlich im temporären Runner-Bereich.
+- Auch der dokumentierte Standalone-Aufruf des einzeln aus GitHub in den
+  Windows-Temp-Ordner geladenen Helfers wurde ohne lokal ausgecheckte
+  Projektdateien bestätigt
+  ([Lauf 39438579118](https://github.com/lxsdd/foo_dj_library_bridge/actions/runs/39438579118), Win32/x64 PASS, 0 Artefakte).
 - Die Testkandidaten sind **nicht auf dem Endgerät installiert**. Ein realer
   foobar-Lauf mit standardmäßigem/portablem Profil und persönlicher Sammlung
   bleibt eine separate ausdrückliche Endabnahme.
