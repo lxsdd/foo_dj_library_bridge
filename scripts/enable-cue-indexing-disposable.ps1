@@ -105,14 +105,42 @@ $before=[Text.StringBuilder]::new(512)
 if ($before.ToString() -cne '*.CUE') {
  throw 'Native exclusion value unexpectedly differs from *.CUE.'
 }
-$set=[FoobarIsolatedUiMessage]::SendMessageText(
- $excludeHwnd,[uint32]0x000c,[IntPtr]::Zero,'')
+# WM_SETTEXT changes the native Edit buffer but may not generate the
+# user-originated EN_CHANGE/kill-focus sequence foobar needs to persist the
+# preference. Use *real* Windows input, limited to the exact inspected
+# Edit HWND owned by this official disposable foobar process.
+$prefHandle=[IntPtr]::new([int]$pref.Current.NativeWindowHandle)
+$rect=$edits[0].Current.BoundingRectangle
+if ($prefHandle -eq [IntPtr]::Zero -or
+    $rect.Width -lt 8 -or $rect.Height -lt 8 -or
+    [math]::Abs($rect.Left) -gt 10000 -or [math]::Abs($rect.Top) -gt 10000) {
+ throw 'Verified disposable CUE exclusion control is not visible.'
+}
+[void][FoobarIsolatedUiMessage]::SetForegroundWindow($prefHandle)
+if (-not [FoobarIsolatedUiMessage]::SetCursorPos(
+    [int]($rect.Left+$rect.Width/2),[int]($rect.Top+$rect.Height/2))) {
+ throw 'Unable to focus the disposable native CUE exclusion Edit.'
+}
+Start-Sleep -Milliseconds 75
+[FoobarIsolatedUiMessage]::mouse_event([uint32]2,0,0,0,[UIntPtr]::Zero)
+Start-Sleep -Milliseconds 80
+[FoobarIsolatedUiMessage]::mouse_event([uint32]4,0,0,0,[UIntPtr]::Zero)
+Start-Sleep -Milliseconds 75
+# Ctrl+A, then Backspace, all targeted at the verified foreground Edit.
+[FoobarIsolatedUiMessage]::keybd_event([byte]17,[byte]0,[uint32]0,[UIntPtr]::Zero)
+[FoobarIsolatedUiMessage]::keybd_event([byte]65,[byte]0,[uint32]0,[UIntPtr]::Zero)
+[FoobarIsolatedUiMessage]::keybd_event([byte]65,[byte]0,[uint32]2,[UIntPtr]::Zero)
+[FoobarIsolatedUiMessage]::keybd_event([byte]17,[byte]0,[uint32]2,[UIntPtr]::Zero)
+[FoobarIsolatedUiMessage]::keybd_event([byte]8,[byte]0,[uint32]0,[UIntPtr]::Zero)
+[FoobarIsolatedUiMessage]::keybd_event([byte]8,[byte]0,[uint32]2,[UIntPtr]::Zero)
+Start-Sleep -Milliseconds 180
 $after=[Text.StringBuilder]::new(512)
 [void][FoobarIsolatedUiMessage]::GetEditText(
  $excludeHwnd,[uint32]0x000d,[IntPtr]::new(512),$after)
-if ($set -eq [IntPtr]::Zero -or $after.Length -ne 0) {
- throw 'Cannot clear exclusion on the disposable Media Library profile.'
+if ($after.Length -ne 0) {
+ throw 'Real isolated foobar Edit keyboard input failed to clear *.CUE.'
 }
+Write-Host "FOOBAR_CUE_EXCLUSION_REAL_UI_CHANGE_$Architecture=PASS"
 $prefHwnd=[IntPtr]::new([int]$pref.Current.NativeWindowHandle)
 if ($prefHwnd -eq [IntPtr]::Zero) {throw 'Official Preferences HWND disappeared.'}
 [void][FoobarIsolatedUiMessage]::SendMessage(
