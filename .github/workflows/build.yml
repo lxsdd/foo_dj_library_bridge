@@ -122,7 +122,7 @@ jobs:
         with:
           architecture: ${{ matrix.platform }}
           component-dll: out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll
-          profile-check-script: scripts/verify-empty-host-snapshot.ps1
+          profile-check-script: scripts/probe-foobar-media-library-ui.ps1
           restart-profile-check: 'true'
       - name: Upload DLL
         if: github.event_name != 'pull_request'
