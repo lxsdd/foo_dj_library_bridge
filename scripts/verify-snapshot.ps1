@@ -43,6 +43,8 @@ if (-not [long]::TryParse($state.generation, [ref]$generation) -or $generation -
     throw "Invalid generation: $($state.generation)"
 }
 $stateBefore = [System.IO.File]::ReadAllBytes($statePath)
+# Mirror the DJ Library consumer's path+subsong identity and numeric fail-closed gates.
+$identities = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 $fs = [System.IO.File]::Open($itemsPath, 'Open', 'Read', 'ReadWrite')
 try {
     $gz = New-Object System.IO.Compression.GZipStream($fs, [System.IO.Compression.CompressionMode]::Decompress)
@@ -60,6 +62,23 @@ try {
                 # Split all tabs and retain trailing empty columns for validation.
                 $parts = $line -split "`t"
                 if ($parts.Count -ne $expectedColumns) { throw "Payload row $($count+2) has $($parts.Count) instead of $expectedColumns columns" }
+                if ([string]::IsNullOrWhiteSpace($parts[0])) { throw "Payload row $($count+2) has an empty path" }
+                $subsong = [int]0
+                if (-not [int]::TryParse($parts[1], [ref]$subsong) -or $subsong -lt 0) {
+                    throw "Payload row $($count+2) has invalid subsong"
+                }
+                $identity = [string]::Concat($parts[0], [char]10, $subsong.ToString([Globalization.CultureInfo]::InvariantCulture))
+                if (-not $identities.Add($identity)) { throw "Payload row $($count+2) repeats path+subsong" }
+                if (-not [string]::IsNullOrWhiteSpace($parts[19])) {
+                    $duration = [double]0
+                    if (-not [double]::TryParse($parts[19],
+                        [Globalization.NumberStyles]::Float,
+                        [Globalization.CultureInfo]::InvariantCulture,
+                        [ref]$duration) -or $duration -lt 0 -or
+                        [double]::IsNaN($duration) -or [double]::IsInfinity($duration)) {
+                        throw "Payload row $($count+2) has invalid duration_seconds"
+                    }
+                }
                 if ([string]::IsNullOrWhiteSpace($parts[24])) { throw "Payload row $($count+2) has empty extra_metadata_json; canonical '{}' expected" }
                 try { $extra = ConvertFrom-Json -InputObject $parts[24] -AsHashtable -NoEnumerate -ErrorAction Stop }
                 catch { throw "Payload row $($count+2) has invalid extra_metadata_json: $($_.Exception.Message)" }

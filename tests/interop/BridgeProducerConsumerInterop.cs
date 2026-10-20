@@ -188,6 +188,24 @@ namespace DJLibrary
             Console.WriteLine("PASS C# reader rejected real C++ fixture " + fixtureName);
         }
 
+        // Inspect checks rows/count; LoadItems additionally enforces identity and
+        // numeric fields. These genuine producer-derived mutations must be
+        // rejected at the original reader's LoadItems boundary, not accepted
+        // merely because Inspect finds a structurally complete snapshot.
+        private static void CheckLoadRejected(string root, string fixtureName)
+        {
+            string directory = Dir(root, fixtureName);
+            BridgeSnapshotStatus status = BridgeSnapshotReader.Inspect(directory, true);
+            Must(status.Present && status.Compatible && status.Complete &&
+                status.VerifiedItemCount == 3 && status.DeclaredItemCount == 3,
+                "load-only negative " + fixtureName + " must pass structural Inspect");
+            bool denied = false;
+            try { BridgeSnapshotReader.LoadItems(directory, status); }
+            catch (InvalidDataException) { denied = true; }
+            Must(denied, "consumer accepted invalid " + fixtureName);
+            Console.WriteLine("PASS original C# consumer LoadItems rejected " + fixtureName);
+        }
+
         public static int Main(string[] args)
         {
             try
@@ -216,6 +234,10 @@ namespace DJLibrary
                 CheckRejected(root, "incomplete", true);
                 CheckRejected(root, "future-schema", false);
                 CheckRejected(root, "wrong-header", false);
+                CheckLoadRejected(root, "empty-path");
+                CheckLoadRejected(root, "invalid-subsong");
+                CheckLoadRejected(root, "duplicate-identity");
+                CheckLoadRejected(root, "negative-duration");
                 Console.WriteLine("PASS end-to-end C++ bridge schema-v3 producer -> real " +
                     "DJ Library BridgeSnapshotReader, with v2 and negative cases");
                 return 0;

@@ -72,8 +72,25 @@ empty_vectors = [row.copy() for row in rows]
 empty_vectors[1][-1] = ""
 write("empty-vectors", empty_vectors)
 
+# Reader-aligned integrity negatives: each starts from a real C++-emitted row.
+missing_path = [row.copy() for row in rows]
+missing_path[1][0] = ""
+write("empty-path", missing_path)
+
+negative_subsong = [row.copy() for row in rows]
+negative_subsong[1][1] = "-1"
+write("invalid-subsong", negative_subsong)
+
+duplicate_identity = [row.copy() for row in rows]
+duplicate_identity[2][0:2] = duplicate_identity[1][0:2]
+write("duplicate-identity", duplicate_identity)
+
+negative_duration = [row.copy() for row in rows]
+negative_duration[1][19] = "-2.5"
+write("negative-duration", negative_duration)
+
 print(f"PASS generated real C++ producer v3 ({count} records) and v2 legacy fixtures "
-      "plus seven intentionally invalid snapshots")
+      "plus eleven intentionally invalid snapshots")
 
 
 # Full-size but strictly fictitious schema-v3 payload. This is generated
