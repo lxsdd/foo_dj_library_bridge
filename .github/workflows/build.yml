@@ -63,6 +63,23 @@ jobs:
       - name: Bootstrap exact foobar2000 SDK and build with VS2022 toolset
         shell: pwsh
         run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset v143
+      - name: Native Publisher add/edit/remove/restart snapshot integration (${{ matrix.platform }})
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msbuild = (Get-Command msbuild.exe -ErrorAction Stop).Source
+          & $msbuild 'tests/publisher_integration.vcxproj' /m /p:Configuration=Release /p:Platform='${{ matrix.platform }}' /p:PlatformToolset=v143 /restore
+          if ($LASTEXITCODE -ne 0) { throw 'Native Publisher test build failed' }
+          $testRoot = Join-Path $env:RUNNER_TEMP ('bridge-native-publisher-${{ matrix.platform }}-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
+          try {
+            & "out/${{ matrix.platform }}/Release/publisher_integration.exe" $testRoot
+            if ($LASTEXITCODE -ne 0) { throw 'Native Publisher test failed' }
+            & ./scripts/verify-publisher-fixtures.ps1 -TestRoot $testRoot
+          } finally {
+            if (Test-Path -LiteralPath $testRoot) {
+              Remove-Item -LiteralPath $testRoot -Recurse -Force
+            }
+          }
       - name: Real foobar2000 host/component smoke (${{ matrix.platform }})
         uses: lxsdd/dev-infrastructure-public/.github/actions/foobar-host-smoke@4492e4773412794833a077d7c10a8ca3b0ea021d
         with:
