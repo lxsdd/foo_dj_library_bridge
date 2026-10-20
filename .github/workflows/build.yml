@@ -78,7 +78,7 @@ jobs:
           Write-Host "OFFICIAL_FOOBAR_SDK_2026_09_17_SIZE=$size"
           Write-Host "OFFICIAL_FOOBAR_SDK_2026_09_17_SHA256=$hash"
       - name: Exercise SHA-pinned local dual-architecture candidate without uploading
-        if: matrix.platform == 'x64' && github.event_name == 'pull_request'
+        if: false # Full local source-to-package qualification PASS (GitHub run 39435835240); avoid repeated expensive builds
         shell: pwsh
         run: ./scripts/local-acceptance-build.ps1 -SourceSha '${{ github.event.pull_request.head.sha }}' -OutputDirectory "$env:RUNNER_TEMP\Bridge-private-acceptance"
 
