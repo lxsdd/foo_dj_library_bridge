@@ -157,6 +157,53 @@ int wmain(int argc, wchar_t** argv) {
             capture(live, stages / "g8-many", 8, 1024);
             restarted.shutdown();
         }
+
+        // Force a deterministic output failure by making the temporary gzip
+        // *path* a directory. No real music, tags, or user-owned files exist.
+        // The producer must fail closed with complete=0 and preserve the
+        // previously committed gzip, even though the new generation fails.
+        const auto blocker = live / "digital-items.tsv.gz.tmp";
+        require(!fs::exists(blocker), "Unexpected temporary gzip path");
+        fs::create_directory(blocker);
+        {
+            djbridge::Publisher failing;
+            require(failing.configure(live, source), "Failure-test publisher unavailable");
+            failing.request({make_record(9, "Blocked output")});
+            const auto deadline = std::chrono::steady_clock::now() + 20s;
+            for (;;) {
+                const auto [marker, count] = read_state(live / "bridge-state.tsv");
+                if (marker == "9:0" && count == "1" &&
+                    fs::is_regular_file(live / "bridge-error.txt")) break;
+                if (std::chrono::steady_clock::now() >= deadline) {
+                    throw std::runtime_error("Publisher did not fail closed: " + marker);
+                }
+                std::this_thread::sleep_for(75ms);
+            }
+            const auto failedDir = stages / "g9-fail-closed";
+            fs::create_directories(failedDir);
+            fs::copy_file(live / "bridge-state.tsv",
+                failedDir / "bridge-state.tsv", fs::copy_options::overwrite_existing);
+            fs::copy_file(live / "digital-items.tsv.gz",
+                failedDir / "digital-items.tsv.gz", fs::copy_options::overwrite_existing);
+            fs::copy_file(live / "bridge-error.txt",
+                failedDir / "bridge-error.txt", fs::copy_options::overwrite_existing);
+            require(fs::file_size(failedDir / "digital-items.tsv.gz") ==
+                    fs::file_size(stages / "g8-many" / "digital-items.tsv.gz"),
+                    "Previous atomic gzip was unexpectedly changed");
+            std::cout << "PUBLISHER_FAIL_CLOSED_GENERATION_9=PASS" << std::endl;
+            failing.shutdown();
+        }
+        fs::remove(blocker);
+        {
+            djbridge::Publisher recovered;
+            require(recovered.configure(live, source), "Recovery publisher unavailable");
+            recovered.request({make_record(9, "Recovered after failure")});
+            capture(live, stages / "g10-recovery", 10, 1);
+            require(!fs::exists(live / "bridge-error.txt"),
+                "Successful commit did not remove stale error state");
+            recovered.shutdown();
+        }
+        std::cout << "PUBLISHER_FAILURE_RECOVERY=PASS" << std::endl;
         std::cout << "PUBLISHER_NATIVE_INTEGRATION=PASS" << std::endl;
         return 0;
     } catch (const std::exception& e) {
