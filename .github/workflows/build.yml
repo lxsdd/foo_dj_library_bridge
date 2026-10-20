@@ -64,11 +64,12 @@ jobs:
         shell: pwsh
         run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset v143
       - name: Real foobar2000 host/component smoke (${{ matrix.platform }})
-        uses: lxsdd/dev-infrastructure-public/.github/actions/foobar-host-smoke@1f340bd2e6b11297323bdfda3796f61f9319d8bb
+        uses: lxsdd/dev-infrastructure-public/.github/actions/foobar-host-smoke@e884b104e5f5f7489cbc318ae30fff8da1e5588a
         with:
           architecture: ${{ matrix.platform }}
           component-dll: out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll
           profile-check-script: scripts/verify-empty-host-snapshot.ps1
+          restart-profile-check: 'true'
       - name: Upload DLL
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
