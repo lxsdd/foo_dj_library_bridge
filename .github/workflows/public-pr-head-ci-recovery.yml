@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   missing-pr-ci:
-    uses: lxsdd/dev-infrastructure-public/.github/workflows/dispatch-pr-head-ci.yml@0b3e6532761658a282662ca340ab7347ca8aa98b
+    uses: lxsdd/dev-infrastructure-public/.github/workflows/dispatch-pr-head-ci.yml@eed379ee8ed8a478285b437176ab61e12cfff0ce
     with:
       pr_numbers: '7'
       workflow_files: 'build.yml'
