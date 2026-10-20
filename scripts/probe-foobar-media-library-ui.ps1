@@ -77,6 +77,71 @@ $windows = @($root.FindAll(
     Where-Object { $_.Current.ProcessId -eq $foobarPid })
 Write-Host "FOOBAR_UI_AFTER_CONFIG_$Architecture=TOP_WINDOWS $($windows.Count)"
 
+# Use the native Windows treeview API to select pages by *observed* caption.
+# No keyboard automation, input injection, direct config edits or library writes.
+$prefWindows = @($windows | ForEach-Object {
+    $_.FindAll(
+        [System.Windows.Automation.TreeScope]::Descendants,
+        [System.Windows.Automation.Condition]::TrueCondition)
+} | Where-Object {
+    $_.Current.ProcessId -eq $foobarPid -and
+    $_.Current.ControlType.ProgrammaticName -eq 'ControlType.Window' -and
+    $_.Current.Name -like 'Preferences:*'
+})
+if ($prefWindows.Count -eq 1) {
+    $prefs = $prefWindows[0]
+    $treeCond = [System.Windows.Automation.PropertyCondition]::new(
+        [System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1068')
+    $tree = $prefs.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$treeCond)
+    if ($null -ne $tree) {
+        $treeClass = $tree.Current.ClassName
+        $treeHwnd = [IntPtr]::new([int]$tree.Current.NativeWindowHandle)
+        Write-Host "FOOBAR_PREFS_TREE_$Architecture=class:$treeClass,handle:$treeHwnd"
+        if ($treeClass -eq 'SysTreeView32' -and $treeHwnd -ne [IntPtr]::Zero) {
+            $tvNext = [uint32]0x110a
+            $tvSelect = [uint32]0x110b
+            $rootItem = [FoobarIsolatedUiMessage]::SendMessage(
+                $treeHwnd,$tvNext,[IntPtr]::Zero,[IntPtr]::Zero)
+            $pending = [System.Collections.Generic.Stack[IntPtr]]::new()
+            if ($rootItem -ne [IntPtr]::Zero) { $pending.Push($rootItem) }
+            $seen = [System.Collections.Generic.HashSet[string]]::new()
+            $observedNames = [System.Collections.Generic.HashSet[string]]::new()
+            $count = 0
+            $foundMediaLibrary = $false
+            while ($pending.Count -gt 0 -and $count -lt 120) {
+                $item = $pending.Pop()
+                if (-not $seen.Add($item.ToString())) { continue }
+                $count++
+                [void][FoobarIsolatedUiMessage]::SendMessage(
+                    $treeHwnd,$tvSelect,[IntPtr]::new(9),$item)
+                Start-Sleep -Milliseconds 65
+                $pageTitle = $prefs.Current.Name
+                if ($pageTitle -like 'Preferences:*' -and $observedNames.Add($pageTitle)) {
+                    Write-Host "FOOBAR_PREFS_PAGE_$Architecture=$pageTitle"
+                }
+                if ($pageTitle -eq 'Preferences: Media Library') {
+                    $foundMediaLibrary = $true
+                    break
+                }
+                $next = [FoobarIsolatedUiMessage]::SendMessage(
+                    $treeHwnd,$tvNext,[IntPtr]::new(1),$item)
+                $child = [FoobarIsolatedUiMessage]::SendMessage(
+                    $treeHwnd,$tvNext,[IntPtr]::new(4),$item)
+                if ($next -ne [IntPtr]::Zero) { $pending.Push($next) }
+                if ($child -ne [IntPtr]::Zero) { $pending.Push($child) }
+            }
+            Write-Host "FOOBAR_PREFS_MEDIA_LIBRARY_$Architecture=$($foundMediaLibrary.ToString().ToUpperInvariant()) traversed=$count"
+        } else {
+            Write-Host "FOOBAR_PREFS_MEDIA_LIBRARY_$Architecture=UNSUPPORTED_CONTROL"
+        }
+    } else {
+        Write-Host "FOOBAR_PREFS_MEDIA_LIBRARY_$Architecture=NO_TREE"
+    }
+} else {
+    Write-Host "FOOBAR_PREFS_MEDIA_LIBRARY_$Architecture=NO_UNIQUE_PREFERENCES_DIALOG"
+}
+
+
 $printed = 0
 function Visit-Control {
     param([System.Windows.Automation.AutomationElement]$element,[int]$depth)
