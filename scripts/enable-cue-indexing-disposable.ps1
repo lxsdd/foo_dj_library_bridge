@@ -150,9 +150,9 @@ $editControls=@($verifyPrefs[0].FindAll(
 $values=[System.Collections.Generic.List[string]]::new()
 foreach ($control in $editControls) {
  $handle=[IntPtr]::new([int]$control.Current.NativeWindowHandle)
- $pid=[uint32]0
- [void][FoobarIsolatedUiMessage]::GetWindowThreadProcessId($handle,[ref]$pid)
- if ($handle -eq [IntPtr]::Zero -or $pid -ne $hostPid) {
+ $editOwnerPid=[uint32]0
+ [void][FoobarIsolatedUiMessage]::GetWindowThreadProcessId($handle,[ref]$editOwnerPid)
+ if ($handle -eq [IntPtr]::Zero -or $editOwnerPid -ne $hostPid) {
   throw 'Refusing to inspect a non-foobar Preferences edit.'
  }
  $buffer=[Text.StringBuilder]::new(512)
