@@ -123,7 +123,7 @@ jobs:
           architecture: ${{ matrix.platform }}
           component-dll: out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll
           profile-check-script: scripts/probe-foobar-media-library-ui.ps1
-          restart-profile-check: 'true'
+          restart-profile-check: 'false'
       - name: Upload DLL
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
