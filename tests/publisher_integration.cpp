@@ -45,6 +45,10 @@ void capture(const fs::path& live, const fs::path& output,
     const auto started = std::chrono::steady_clock::now();
     const auto deadline = started + timeout;
     const auto error = live / "bridge-error.txt";
+    // Generation 9 deliberately leaves an error file. Only a NEW writer
+    // error after this wait started is a failure in recovery generation 10.
+    const auto previousErrorTimestamp = fs::is_regular_file(error) ?
+        fs::last_write_time(error) : fs::file_time_type::min();
     const auto state = live / "bridge-state.tsv";
     const auto payload = live / "digital-items.tsv.gz";
     const std::string expected = std::to_string(generation) + ":1";
@@ -52,7 +56,8 @@ void capture(const fs::path& live, const fs::path& output,
         const auto [marker, items] = read_state(state);
         if (marker == expected && items == std::to_string(count) &&
             fs::exists(payload)) break;
-        if (fs::is_regular_file(error)) {
+        if (fs::is_regular_file(error) &&
+            fs::last_write_time(error) > previousErrorTimestamp) {
             std::ifstream stream(error);
             std::string message;
             std::getline(stream, message);
