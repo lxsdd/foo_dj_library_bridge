@@ -276,3 +276,5 @@ $g3=Wait-BridgeSnapshot -ExpectedCount 2 -PreviousGeneration $g2 -TrackNames @('
 Remove-Item -LiteralPath $second -Force -ErrorAction Stop
 $g4=Wait-BridgeSnapshot -ExpectedCount 1 -PreviousGeneration $g3 -TrackNames @('Synthetic 01.wav') -Phase REMOVED -ExpectedDurationSeconds 2
 Write-Host "BRIDGE_REAL_LIBRARY_ADD_MODIFY_REMOVE_$Architecture=PASS"
+& (Join-Path $PSScriptRoot 'probe-external-cue.ps1') -ProfileDirectory $profile -Architecture $Architecture -MediaDirectory $mediaDir -BeforeGeneration $g4
+
