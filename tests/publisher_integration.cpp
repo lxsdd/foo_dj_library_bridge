@@ -89,10 +89,10 @@ djbridge::Record make_record(unsigned id, const std::string& title) {
 }
 }  // namespace
 
-int main(int argc, char** argv) {
+int wmain(int argc, wchar_t** argv) {
     try {
         require(argc == 2, "Expected one isolated test root argument");
-        const fs::path root = fs::u8path(argv[1]);
+        const fs::path root = fs::path(argv[1]);
         require(!fs::exists(root), "Refusing to overwrite an existing test root");
         fs::create_directories(root);
         const fs::path live = root / "live";
