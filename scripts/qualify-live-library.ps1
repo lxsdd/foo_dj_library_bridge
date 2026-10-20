@@ -64,8 +64,21 @@ if (-not [string]::Equals($actualEditText,$mediaDir,[StringComparison]::OrdinalI
  throw "Native Folder Edit text differed from requested isolated directory: '$actualEditText'"
 }
 Write-Host "BRIDGE_SYNTHETIC_FOLDER_EDIT_$Architecture=PASS"
+# A shell Folder Picker accepts a typed absolute path through the edit field
+# only after the path is navigated/committed with Enter. BM_CLICK alone can
+# dismiss the chooser while leaving the monitored-folder list empty.
 [void][FoobarIsolatedUiMessage]::SendMessage(
- $selectHwnd,[uint32]0x00f5,[IntPtr]::Zero,[IntPtr]::Zero)
+ $editHwnd,[uint32]0x0100,[IntPtr]::new(13),[IntPtr]::Zero)
+[void][FoobarIsolatedUiMessage]::SendMessage(
+ $editHwnd,[uint32]0x0101,[IntPtr]::new(13),[IntPtr]::Zero)
+Start-Sleep -Milliseconds 450
+$pickerAfterEnter=$FirstWindow.FindFirst(
+ [System.Windows.Automation.TreeScope]::Descendants,$PickerCondition)
+Write-Host "BRIDGE_SYNTHETIC_FOLDER_ENTER_$Architecture=$(if($null -eq $pickerAfterEnter){'PICKER_CLOSED'}else{'PICKER_OPEN'})"
+if ($null -ne $pickerAfterEnter) {
+ [void][FoobarIsolatedUiMessage]::SendMessage(
+  $selectHwnd,[uint32]0x00f5,[IntPtr]::Zero,[IntPtr]::Zero)
+}
 $deadline=[DateTime]::UtcNow.AddSeconds(15)
 $still=$Picker
 while ([DateTime]::UtcNow -lt $deadline) {
