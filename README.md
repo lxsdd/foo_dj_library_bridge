@@ -93,3 +93,29 @@ GitHub is the canonical build authority. The workflow builds and tests both Win3
 A manually dispatched candidate run produces an immutable `foo_dj_library_bridge-component-<commit>` Actions artifact. `VERSION` is the canonical package/release version source.
 
 Final release promotion accepts only a successful manually dispatched candidate from `main`, verifies the manifest, commit binding, package version, SHA-256 and component layout, then creates tag `v<VERSION>` and publishes those exact bytes without rebuilding.
+
+## Automated source-to-source producer/consumer end-to-end check
+
+The public `consumer-interop` job builds and executes the **real C++ Bridge
+contract-test producer**, creating gzip `digital-items.tsv.gz` with three
+synthetic subsongs and a genuine 26-column schema-v3 payload. The test-fixture
+generator supplies synthetic `bridge-state.tsv` markers and a v2 backward
+compatibility fixture. It then compiles the **unchanged, SHA-pinned
+`lxsdd/dj-library-public/src/BridgeSnapshot.cs`** against .NET 10 and
+feeds these exact C++-generated files into `Inspect(..., true)` and
+`LoadItems(...)` on the **same hosted Linux runner**.
+
+The consumer must preserve all three (path, subsong) identities, native
+fingerprints, all core values and C++-produced schema-v3 metadata vectors
+(including duplicated/case-distinct field names, empty values, quotes,
+newlines and multi-value arrays). It must reject incomplete, wrong-count,
+unsupported future schema and bad-header inputs. This is a stricter
+**producer→consumer** proof than independent format mocks.
+
+The source link pins DJ Library experiment commit
+`211e85726bcc7e63ce0f9b81f04c2e61257dc5d8`, whose original
+`BridgeSnapshot.cs` Git blob is `7ec0d945e5a31443c4e38b6fe72439ad07f6dc4a`.
+The test does not modify either product, foobar, tags or real library;
+no package/artifact upload or paid Actions runner. This synthetic
+integration does not prove the DLL works inside a real foobar process
+or the user's source-specific 54k-track snapshot.

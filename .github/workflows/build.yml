@@ -76,6 +76,38 @@ jobs:
           }
           Write-Host 'PASS: source-generated v3 and backward-compatible v2 verification, seven negative cases'
 
+
+  consumer-interop:
+    name: Real C++ producer to unchanged DJ Library C# Bridge reader
+    needs: contract-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: lxsdd/dj-library-public
+          # Exact already-qualified WPF .NET10 BridgeSnapshotReader source.
+          ref: 211e85726bcc7e63ce0f9b81f04c2e61257dc5d8
+          path: djlib-source
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.401'
+      - name: Compile and execute actual C++ Bridge schema-v3 contract producer
+        run: |
+          g++ -std=c++20 -Wall -Wextra -Werror tests/contract_tests.cpp src/bridge_contract.cpp src/gzip_stored.cpp -o contract-tests
+          ./contract-tests
+          python3 scripts/generate-snapshot-verifier-fixtures.py
+      - name: Run unchanged DJ Library production Bridge reader on real C++ gzip and state
+        run: |
+          dotnet run --project tests/interop/BridgeProducerConsumerInterop.csproj -c Release -- ./snapshot-verifier-fixtures
+      - name: Boundaries
+        run: |
+          echo 'PASS public hosted synthetic source test only: no foobar host, original user profile, files, artifacts, releases or private minutes'
+
   windows-build:
     runs-on: windows-latest
     strategy:
