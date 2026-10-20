@@ -52,7 +52,8 @@ internal static class BridgeNativeWindowsConsumer
                 ("g5-coalesced", 5, 3),
                 ("g6-restart", 6, 3),
                 ("g7-delete", 7, 0),
-                ("g8-many", 8, 1024)
+                ("g8-many", 8, 1024),
+                ("g10-recovery", 10, 1)
             };
             string oldFingerprint = "";
             foreach (var stage in stages)
@@ -94,9 +95,33 @@ internal static class BridgeNativeWindowsConsumer
                     Must(records.Single().Title == "Alpha (updated)", "Removed item remained in C# reader");
                 if (stage.Name == "g5-coalesced")
                     Must(records.Any(x => x.Title == "Burst final"), "Coalesced last value was lost");
+                if (stage.Name == "g10-recovery")
+                    Must(records.Single().Title == "Recovered after failure",
+                         "Recovered snapshot not readable in original C# consumer");
                 Console.WriteLine("NATIVE_PUBLISHER_TO_ORIGINAL_CSHARP_STAGE_" +
                                   stage.Generation + "=PASS count=" + records.Count);
             }
+
+            // An injected Windows output error wrote complete=0 for generation 9,
+            // but left generation 8's compressed bytes in place. The unchanged
+            // DJ Library consumer must explicitly reject this inconsistent pair.
+            string interrupted = System.IO.Path.Combine(args[0], "stages", "g9-fail-closed");
+            DJLibrary.BridgeSnapshotStatus rejected =
+                DJLibrary.BridgeSnapshotReader.Inspect(interrupted, true);
+            Must(rejected.Present && rejected.SchemaVersion == 3 &&
+                 rejected.Generation == 9 && !rejected.Complete,
+                 "Original DJ Library Inspect did not recognize incomplete generation");
+            bool rejectedLoad = false;
+            try
+            {
+                _ = DJLibrary.BridgeSnapshotReader.LoadItems(interrupted, rejected);
+            }
+            catch (InvalidDataException)
+            {
+                rejectedLoad = true;
+            }
+            Must(rejectedLoad, "Original DJ Library consumer incorrectly accepted incomplete output");
+            Console.WriteLine("NATIVE_PUBLISHER_INCOMPLETE_SNAPSHOT_REJECTED=PASS");
             Console.WriteLine("NATIVE_PUBLISHER_TO_ORIGINAL_DJ_LIBRARY=PASS");
             return 0;
         }
