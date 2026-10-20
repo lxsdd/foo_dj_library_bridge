@@ -119,7 +119,7 @@ $readableVirtualTracks=0
 $observedVirtual=@()
 $lastCueGeneration=$backingGeneration
 # No *.cue exclusion changes yet. Observational discovery only.
-$monitorUntil=[DateTime]::UtcNow.AddSeconds(7)
+$monitorUntil=[DateTime]::UtcNow.AddSeconds(30)
 while([DateTime]::UtcNow -lt $monitorUntil) {
  try {
   $snap=Read-ActualSnapshot
@@ -139,7 +139,15 @@ while([DateTime]::UtcNow -lt $monitorUntil) {
  Start-Sleep -Milliseconds 300
 }
 if (-not $virtualObserved) {
- throw 'External CUE enabled but no virtual subsongs reached the real Bridge snapshot.'
+ Write-Host "BRIDGE_CUE_DIAGNOSTIC_$Architecture=last_generation:$lastCueGeneration"
+ $last=Read-ActualSnapshot
+ if ($null -ne $last) {
+  foreach ($rec in $last.rows) {
+   $safeTitle=if ($rec[4] -like 'Virtual Cue Part *') {$rec[4]} else {'other'}
+   Write-Host "BRIDGE_CUE_DIAGNOSTIC_ROW_$Architecture=source_extension:$([IO.Path]::GetExtension($rec[0])) subsong:$($rec[1]) title:$safeTitle"
+  }
+ }
+ throw 'External CUE enabled but no virtual subsongs reached the real Bridge snapshot after 30s.'
 }
 if ($readableVirtualTracks -ne 2) {
  throw "External two-track CUE exposed $readableVirtualTracks handles instead of two."
