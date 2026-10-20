@@ -57,8 +57,16 @@ if ($editHwnd -eq [IntPtr]::Zero -or $selectHwnd -eq [IntPtr]::Zero -or
     $pickerHwnd -eq [IntPtr]::Zero) { throw 'Missing isolated Folder Picker HWND.' }
 $process = @(Get-Process -Name foobar2000 -ErrorAction Stop)
 if ($process.Count -ne 1) { throw 'Expected exactly one disposable foobar process.' }
-$owners = [System.Collections.Generic.List[string]]::new()
-$unexpectedOwner = $false
+# foobar2000 delegates its official Windows file/folder chooser to its
+# sidecar fooHelper.exe. Only the helper extracted from the verified installer
+# into this exact disposable foobar host folder may receive simulated input.
+$installRoot=[IO.Path]::GetFullPath((Split-Path -Parent $profile))
+$verifiedHelperPath=[IO.Path]::GetFullPath(
+    (Join-Path $installRoot 'fooHelper.exe'))
+if (-not (Test-Path -LiteralPath $verifiedHelperPath -PathType Leaf)) {
+    throw 'Official disposable foobar helper executable was not found.'
+}
+$expectedPickerOwner=[uint32]0
 foreach ($controlSpec in @(
     @{ Role='picker'; Handle=$pickerHwnd },
     @{ Role='edit';   Handle=$editHwnd },
@@ -67,17 +75,26 @@ foreach ($controlSpec in @(
     $ownerPid=[uint32]0
     [void][FoobarIsolatedUiMessage]::GetWindowThreadProcessId(
         $controlSpec.Handle,[ref]$ownerPid)
-    $ownerName = 'UNRESOLVED'
-    try {
-        $ownerName = (Get-Process -Id $ownerPid -ErrorAction Stop).ProcessName
-    } catch {}
-    $trustedFoobar = ($ownerPid -eq [uint32]$process[0].Id)
-    Write-Host "BRIDGE_PICKER_CONTROL_OWNER_$Architecture=$($controlSpec.Role) process:$ownerName foobar:$trustedFoobar"
-    if (-not $trustedFoobar) { $unexpectedOwner=$true }
+    $ownerProcess=Get-Process -Id $ownerPid -ErrorAction Stop
+    $ownerPath=$ownerProcess.Path
+    if ([string]::IsNullOrWhiteSpace($ownerPath)) {
+        throw 'Cannot establish native owner executable for folder chooser.'
+    }
+    $fullOwnerPath=[IO.Path]::GetFullPath($ownerPath)
+    $isOfficialHelper=(
+        $ownerProcess.ProcessName -ieq 'fooHelper' -and
+        [string]::Equals($fullOwnerPath,$verifiedHelperPath,
+                        [StringComparison]::OrdinalIgnoreCase))
+    if (-not $isOfficialHelper) {
+        throw 'Refusing real input into an unverified Windows folder chooser process.'
+    }
+    if ($expectedPickerOwner -eq [uint32]0) { $expectedPickerOwner=$ownerPid }
+    if ($ownerPid -ne $expectedPickerOwner) {
+        throw 'Folder picker controls belong to inconsistent helper processes.'
+    }
+    Write-Host "BRIDGE_PICKER_CONTROL_OWNER_$Architecture=$($controlSpec.Role) officialHelper:PASS"
 }
-if ($unexpectedOwner) {
-    throw 'UI control owner differs from foobar: no real input sent until the Windows shell host is identified.'
-}
+Write-Host "BRIDGE_PICKER_OFFICIAL_SIDECAR_$Architecture=PASS"
 function Invoke-DisposableRealMouseClick([System.Windows.Automation.AutomationElement]$Control) {
     $r=$Control.Current.BoundingRectangle
     if ($r.Width -lt 3 -or $r.Height -lt 3 -or
