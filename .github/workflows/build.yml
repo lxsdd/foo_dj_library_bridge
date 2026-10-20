@@ -50,6 +50,31 @@ jobs:
           assert payload == expected
           print('PASS: independent gzip decode, exact 26-column schema-v3 contract, multi-block boundary')
           PY
+      - name: Generate actual C++ producer v3 and legacy-v2 verifier fixtures
+        run: python3 scripts/generate-snapshot-verifier-fixtures.py
+      - name: Validate current v3, legacy v2, and fail-closed malformed snapshots
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & ./scripts/verify-snapshot.ps1 -BridgeDirectory 'snapshot-verifier-fixtures/v3'
+          & ./scripts/verify-snapshot.ps1 -BridgeDirectory 'snapshot-verifier-fixtures/v2'
+          foreach ($name in @(
+            'wrong-count', 'incomplete', 'future-schema', 'wrong-header',
+            'invalid-vectors', 'nonarray-vectors', 'empty-vectors'
+          )) {
+            $rejected = $false
+            try {
+              & ./scripts/verify-snapshot.ps1 -BridgeDirectory "snapshot-verifier-fixtures/$name"
+            }
+            catch {
+              $rejected = $true
+              Write-Host "PASS: invalid synthetic snapshot '$name' rejected"
+            }
+            if (-not $rejected) {
+              throw "Unsafe: malformed snapshot '$name' passed verification"
+            }
+          }
+          Write-Host 'PASS: source-generated v3 and backward-compatible v2 verification, seven negative cases'
 
   windows-build:
     runs-on: windows-latest

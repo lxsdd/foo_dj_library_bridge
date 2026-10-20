@@ -71,6 +71,15 @@ For another/portable profile:
 ./scripts/verify-snapshot.ps1 -BridgeDirectory 'D:\path\to\profile\foo_dj_library_bridge'
 ```
 
+The verifier recognizes both historical **schema v2 / 25-column** and
+current **schema v3 / 26-column** snapshots. For schema v3 it also
+validates the appended `metadata_vectors_json` array and its string
+value lists. It fails closed for malformed headers, incomplete commits,
+unsupported schemas, declared item-count mismatches and producer-state
+changes during verification. The public CI generates its positive and
+negative fixtures from the actual C++ contract-test producer and never
+uses a real foobar profile.
+
 ## Status
 
 `0.1.0-rc4`: schema-v3 development candidate for the single-snapshot lossless metadata-vector projection. This revision must not be promoted to `main`/release until downstream compatibility has been qualified against DJ Library and Rekordbox MyTag Sync.
