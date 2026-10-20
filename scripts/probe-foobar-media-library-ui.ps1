@@ -12,8 +12,11 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-& (Join-Path $PSScriptRoot 'verify-empty-host-snapshot.ps1') -ProfileDirectory $ProfileDirectory -Architecture $Architecture -ProbeIteration $ProbeIteration
-if ($ProbeIteration -ne 1) { return }
+if ($ProbeIteration -eq 2) {
+    & (Join-Path $PSScriptRoot 'verify-nonempty-host-restart.ps1') -ProfileDirectory $ProfileDirectory -Architecture $Architecture -ProbeIteration 2
+    return
+}
+& (Join-Path $PSScriptRoot 'verify-empty-host-snapshot.ps1') -ProfileDirectory $ProfileDirectory -Architecture $Architecture -ProbeIteration 1
 if ($env:GITHUB_ACTIONS -ne 'true' -or [string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
     throw 'UI exploration is restricted to ephemeral GitHub Windows runners.'
 }
@@ -247,4 +250,4 @@ foreach ($window in $windows) {
     Visit-Control -element $window -depth 0
 }
 Write-Host "FOOBAR_UI_INSPECT_$Architecture=PASS nodes=$printed"
-Write-Host "FOOBAR_NONEMPTY_LIBRARY_$Architecture=ADD_REMOVE_PASS"
+Write-Host "FOOBAR_NONEMPTY_LIBRARY_$Architecture=ADD_MODIFY_REMOVE_PASS"
