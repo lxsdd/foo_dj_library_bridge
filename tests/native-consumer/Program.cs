@@ -53,7 +53,8 @@ internal static class BridgeNativeWindowsConsumer
                 ("g6-restart", 6, 3),
                 ("g7-delete", 7, 0),
                 ("g8-many", 8, 1024),
-                ("g10-recovery", 10, 1)
+                ("g10-recovery", 10, 1),
+                ("g11-large", 11, 54129)
             };
             string oldFingerprint = "";
             foreach (var stage in stages)
@@ -98,6 +99,10 @@ internal static class BridgeNativeWindowsConsumer
                 if (stage.Name == "g10-recovery")
                     Must(records.Single().Title == "Recovered after failure",
                          "Recovered snapshot not readable in original C# consumer");
+                if (stage.Name == "g11-large")
+                    Must(records[0].Title.StartsWith("Synthetic library track ", StringComparison.Ordinal) &&
+                         records[^1].Title.StartsWith("Synthetic library track ", StringComparison.Ordinal),
+                         "Large Windows-native dataset could not be projected by DJ Library");
                 Console.WriteLine("NATIVE_PUBLISHER_TO_ORIGINAL_CSHARP_STAGE_" +
                                   stage.Generation + "=PASS count=" + records.Count);
             }
