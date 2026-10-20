@@ -35,6 +35,11 @@ if (Test-Path -LiteralPath (Join-Path $MediaDirectory 'Synthetic Embedded.cue'))
 # Python is part of the runner image; no third-party encoder/download.
 & python (Join-Path $PSScriptRoot 'generate-embedded-flac-fixture.py') $generated
 if ($LASTEXITCODE -ne 0) {throw 'Source-only synthetic FLAC generator failed.'}
+& python (Join-Path $PSScriptRoot 'verify-embedded-flac-fixture.py') $generated
+if ($LASTEXITCODE -ne 0) {
+ throw 'Independent lossless FLAC/embedded CUESHEET check failed before foobar.'
+}
+Write-Host "BRIDGE_EMBEDDED_FLAC_INDEPENDENT_VERIFICATION_$Architecture=PASS"
 $bytes=[IO.File]::ReadAllBytes($generated)
 if ($bytes.Length -lt 1024 -or
     [Text.Encoding]::ASCII.GetString($bytes,0,4) -cne 'fLaC') {
