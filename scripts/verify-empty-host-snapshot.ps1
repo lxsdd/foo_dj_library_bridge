@@ -7,7 +7,8 @@ Does not add library folders, write tags, or inspect the user's real collection.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$ProfileDirectory,
-    [Parameter(Mandatory)][ValidateSet('Win32','x64')][string]$Architecture
+    [Parameter(Mandatory)][ValidateSet('Win32','x64')][string]$Architecture,
+    [ValidateRange(1,2)][int]$ProbeIteration = 1
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -61,7 +62,7 @@ while ([DateTime]::UtcNow -lt $deadline) {
                 }
                 if ($state.schema_version -ne '3') { throw "Unexpected Bridge schema: $($state.schema_version)" }
                 if ($state.item_count -ne '0') { throw "Unexpected non-empty disposable Media Library: $($state.item_count)" }
-                if ($state.generation -notmatch '^[1-9][0-9]*$') { throw "Invalid initial generation: $($state.generation)" }
+                if ($state.generation -ne [string]$ProbeIteration) { throw "Unexpected generation for host boot $ProbeIteration; got $($state.generation)" }
                 if ($state.producer_version -ne '0.1.0-rc4') { throw "Wrong Bridge producer: $($state.producer_version)" }
                 if ($state.producer_pid -notmatch '^[1-9][0-9]*$') { throw 'Missing live producer PID' }
 
