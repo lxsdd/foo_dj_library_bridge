@@ -27,7 +27,7 @@ jobs:
       - name: Parse new host automation scripts before Windows builds
         shell: pwsh
         run: |
-          foreach ($name in @('scripts/probe-foobar-media-library-ui.ps1','scripts/qualify-live-library.ps1')) {
+          foreach ($name in @('scripts/probe-foobar-media-library-ui.ps1','scripts/qualify-live-library.ps1','scripts/verify-nonempty-host-restart.ps1')) {
             $tokens = $null
             $parseErrors = $null
             [System.Management.Automation.Language.Parser]::ParseFile(
@@ -135,7 +135,7 @@ jobs:
           architecture: ${{ matrix.platform }}
           component-dll: out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll
           profile-check-script: scripts/probe-foobar-media-library-ui.ps1
-          restart-profile-check: 'false'
+          restart-profile-check: 'true'
       - name: Upload DLL
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
