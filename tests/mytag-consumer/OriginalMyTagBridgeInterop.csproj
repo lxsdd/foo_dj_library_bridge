@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>OriginalMyTagBridgeInterop</AssemblyName>
+    <RestoreIgnoreFailedSources>true</RestoreIgnoreFailedSources>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="$(MyTagBridgeSource)" Link="OriginalMyTagBridgeSnapshot.cs" />
+    <Compile Include="$(MyTagDiscoverySource)" Link="OriginalMyTagBridgeSourceDiscovery.cs" />
+  </ItemGroup>
+</Project>
