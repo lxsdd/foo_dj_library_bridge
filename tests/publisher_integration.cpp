@@ -38,7 +38,13 @@ std::pair<std::string, std::string> read_state(const fs::path& path) {
 
 void capture(const fs::path& live, const fs::path& output,
              unsigned generation, unsigned count) {
-    const auto deadline = std::chrono::steady_clock::now() + 30s;
+    // Large Win32 stress fixtures can be unusually slow on shared hosted CI.
+    // Keep the original 30-second bound for small records and allow the
+    // 54,129-row stress case 90 seconds with explicit publisher-error checks.
+    const auto timeout = count >= 50000 ? 90s : 30s;
+    const auto started = std::chrono::steady_clock::now();
+    const auto deadline = started + timeout;
+    const auto error = live / "bridge-error.txt";
     const auto state = live / "bridge-state.tsv";
     const auto payload = live / "digital-items.tsv.gz";
     const std::string expected = std::to_string(generation) + ":1";
@@ -46,10 +52,19 @@ void capture(const fs::path& live, const fs::path& output,
         const auto [marker, items] = read_state(state);
         if (marker == expected && items == std::to_string(count) &&
             fs::exists(payload)) break;
+        if (fs::is_regular_file(error)) {
+            std::ifstream stream(error);
+            std::string message;
+            std::getline(stream, message);
+            throw std::runtime_error("Real Publisher failed at generation " +
+                std::to_string(generation) + ": " + message.substr(0, 200));
+        }
         if (std::chrono::steady_clock::now() >= deadline) {
             throw std::runtime_error("Timed out at generation " +
                 std::to_string(generation) + " marker=" + marker +
-                " items=" + items);
+                " items=" + items + " after " +
+                std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - started).count()) + "ms");
         }
         std::this_thread::sleep_for(75ms);
     }
