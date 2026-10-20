@@ -60,7 +60,9 @@ foreach ($stage in $expected) {
     $titles = @()
     $fingerprints = @{}
     $paths = @()
-    foreach ($line in $lines[1..($lines.Count-1)]) {
+    $rows = @()
+    if ($lines.Count -gt 1) { $rows = @($lines[1..($lines.Count - 1)]) }
+    foreach ($line in $rows) {
         if (-not $line) { continue }
         $v = @($line.Split([char]9))
         if ($v.Count -ne 26) { throw "Bad v3 row width at $($stage.name)" }
