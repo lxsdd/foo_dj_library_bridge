@@ -95,7 +95,7 @@ jobs:
             }
           }
       - name: Real foobar2000 host/component smoke (${{ matrix.platform }})
-        uses: lxsdd/dev-infrastructure-public/.github/actions/foobar-host-smoke@4492e4773412794833a077d7c10a8ca3b0ea021d
+        uses: lxsdd/dev-infrastructure-public/.github/actions/foobar-host-smoke@6a9829ff7ba689d2ab3a1291db1734ad29d577c6
         with:
           architecture: ${{ matrix.platform }}
           component-dll: out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll
