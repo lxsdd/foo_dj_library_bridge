@@ -131,6 +131,31 @@ if ($prefWindows.Count -eq 1) {
                 if ($child -ne [IntPtr]::Zero) { $pending.Push($child) }
             }
             Write-Host "FOOBAR_PREFS_MEDIA_LIBRARY_$Architecture=$($foundMediaLibrary.ToString().ToUpperInvariant()) traversed=$count"
+
+            if ($foundMediaLibrary) {
+                $buttonCond = [System.Windows.Automation.PropertyCondition]::new(
+                    [System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1234')
+                $button = $prefs.FindFirst(
+                    [System.Windows.Automation.TreeScope]::Descendants, $buttonCond)
+                if ($null -eq $button) { throw 'Isolated Media Library + Folder button disappeared.' }
+                $btnClass = $button.Current.ClassName
+                $btnHandle = [IntPtr]::new([int]$button.Current.NativeWindowHandle)
+                Write-Host "FOOBAR_LIBRARY_ADD_FOLDER_$Architecture=class:$btnClass,handle:$btnHandle"
+                if ($btnClass -ne 'Button' -or $btnHandle -eq [IntPtr]::Zero) {
+                    throw 'Unknown Media Library add-folder button implementation.'
+                }
+                # Open only the chooser. No path has been selected or committed.
+                [void][FoobarIsolatedUiMessage]::SendMessage(
+                    $btnHandle,[uint32]0x00f5,[IntPtr]::Zero,[IntPtr]::Zero)
+                Start-Sleep -Milliseconds 700
+                $windows = @($root.FindAll(
+                    [System.Windows.Automation.TreeScope]::Children,
+                    [System.Windows.Automation.Condition]::TrueCondition) |
+                    Where-Object { $_.Current.ProcessId -eq $foobarPid })
+                Write-Host "FOOBAR_LIBRARY_FOLDER_PICKER_$Architecture=TOP_WINDOWS $($windows.Count)"
+                Write-Host "FOOBAR_LIBRARY_FOLDER_PICKER_$Architecture=OPENED_READ_ONLY"
+            }
+
         } else {
             Write-Host "FOOBAR_PREFS_MEDIA_LIBRARY_$Architecture=UNSUPPORTED_CONTROL"
         }
