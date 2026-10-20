@@ -119,3 +119,55 @@ if ($prefHwnd -eq [IntPtr]::Zero) {throw 'Official Preferences HWND disappeared.
  $prefHwnd,[uint32]0x0111,[IntPtr]::new(1),[IntPtr]::Zero)
 Write-Host "FOOBAR_CUE_EXCLUSION_CLEAR_$Architecture=PASS separate_preferences_transaction"
 Write-Host "FOOBAR_CUE_INDEXING_READY_$Architecture=PASS"
+
+# WM_SETTEXT can change an Edit control without guaranteeing the hosting
+# preferences page persisted it. Reopen official Preferences and verify the
+# actual native exclusion value in the same isolated foobar process.
+$verifyCmd=Start-Process -FilePath $exe -WorkingDirectory (Split-Path -Parent $exe) -ArgumentList '/config' -PassThru
+if (-not $verifyCmd.WaitForExit(8000) -or $verifyCmd.ExitCode -ne 0) {
+ throw 'Cannot reopen disposable foobar Preferences to verify CUE indexing.'
+}
+Start-Sleep -Milliseconds 500
+$verifyWindows=@($root.FindAll([System.Windows.Automation.TreeScope]::Children,
+ [System.Windows.Automation.Condition]::TrueCondition) |
+ Where-Object { $_.Current.ProcessId -eq [int]$hostPid })
+$verifyPrefs=@($verifyWindows | ForEach-Object {
+ $_.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+  [System.Windows.Automation.Condition]::TrueCondition)
+} | Where-Object {
+ $_.Current.ProcessId -eq [int]$hostPid -and
+ $_.Current.ControlType.ProgrammaticName -eq 'ControlType.Window' -and
+ $_.Current.Name -ceq 'Preferences: Media Library'
+})
+if ($verifyPrefs.Count -ne 1) {
+ throw 'Cannot identify reopened Media Library Preferences to verify CUE exclusion.'
+}
+$editControls=@($verifyPrefs[0].FindAll(
+ [System.Windows.Automation.TreeScope]::Descendants,
+ [System.Windows.Automation.Condition]::TrueCondition) | Where-Object {
+ $_.Current.ClassName -ceq 'Edit'
+})
+$values=[System.Collections.Generic.List[string]]::new()
+foreach ($control in $editControls) {
+ $handle=[IntPtr]::new([int]$control.Current.NativeWindowHandle)
+ $pid=[uint32]0
+ [void][FoobarIsolatedUiMessage]::GetWindowThreadProcessId($handle,[ref]$pid)
+ if ($handle -eq [IntPtr]::Zero -or $pid -ne $hostPid) {
+  throw 'Refusing to inspect a non-foobar Preferences edit.'
+ }
+ $buffer=[Text.StringBuilder]::new(512)
+ [void][FoobarIsolatedUiMessage]::GetEditText(
+  $handle,[uint32]0x000d,[IntPtr]::new(512),$buffer)
+ $values.Add($buffer.ToString())
+}
+$persisted = ($values.Count -eq 2 -and
+    $values.Contains('*') -and $values.Contains('') -and
+    -not $values.Contains('*.CUE'))
+Write-Host "FOOBAR_CUE_EXCLUSION_REOPEN_$Architecture=$(if($persisted){'PASS'}else{'FAIL'}) fields:$($values.Count)"
+$verifyHwnd=[IntPtr]::new([int]$verifyPrefs[0].Current.NativeWindowHandle)
+[void][FoobarIsolatedUiMessage]::SendMessage(
+ $verifyHwnd,[uint32]0x0111,[IntPtr]::new(2),[IntPtr]::Zero)
+if (-not $persisted) {
+ throw 'Disposably cleared CUE exclusion did not persist after Preferences were reopened.'
+}
+
