@@ -28,6 +28,7 @@ $procs = @(Get-Process -Name foobar2000 -ErrorAction Stop)
 if ($procs.Count -ne 1) { throw "Expected exactly one isolated foobar process, found $($procs.Count)" }
 $foobarPid = [int]$procs[0].Id
 Write-Host "FOOBAR_UI_DIAGNOSTIC_$Architecture=RUNNING_PID $foobarPid"
+Write-Host "FOOBAR_UI_MAIN_WINDOW_HANDLE_$Architecture=$($procs[0].MainWindowHandle)"
 $root = [System.Windows.Automation.AutomationElement]::RootElement
 $windows = @($root.FindAll(
         [System.Windows.Automation.TreeScope]::Children,
