@@ -76,8 +76,17 @@ $pickerAfterEnter=$FirstWindow.FindFirst(
  [System.Windows.Automation.TreeScope]::Descendants,$PickerCondition)
 Write-Host "BRIDGE_SYNTHETIC_FOLDER_ENTER_$Architecture=$(if($null -eq $pickerAfterEnter){'PICKER_CLOSED'}else{'PICKER_OPEN'})"
 if ($null -ne $pickerAfterEnter) {
- [void][FoobarIsolatedUiMessage]::SendMessage(
-  $selectHwnd,[uint32]0x00f5,[IntPtr]::Zero,[IntPtr]::Zero)
+ $invocation = $null
+ $supportsInvoke = $SelectButton.TryGetCurrentPattern(
+  [System.Windows.Automation.InvokePattern]::Pattern,[ref]$invocation)
+ Write-Host "BRIDGE_SYNTHETIC_FOLDER_SELECT_INVOKE_$Architecture=$supportsInvoke"
+ if ($supportsInvoke) {
+  $invocation.Invoke()
+ } else {
+  # Explicitly fail instead of pretending a native BM_CLICK has committed
+  # the selected directory to foobar's Media Library.
+  throw 'The isolated folder chooser exposes no supported InvokePattern.'
+ }
 }
 $deadline=[DateTime]::UtcNow.AddSeconds(15)
 $still=$Picker
