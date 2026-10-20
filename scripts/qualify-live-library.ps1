@@ -56,6 +56,13 @@ if ($editHwnd -eq [IntPtr]::Zero -or $selectHwnd -eq [IntPtr]::Zero) { throw 'Mi
 $set=[FoobarIsolatedUiMessage]::SendMessageText(
  $editHwnd,[uint32]0x000c,[IntPtr]::Zero,$mediaDir)
 if ($set -eq [IntPtr]::Zero) { throw 'Native folder edit rejected WM_SETTEXT.' }
+$echo=[Text.StringBuilder]::new(4096)
+[void][FoobarIsolatedUiMessage]::GetEditText(
+ $editHwnd,[uint32]0x000d,[IntPtr]::new(4096),$echo)
+$actualEditText=$echo.ToString()
+if (-not [string]::Equals($actualEditText,$mediaDir,[StringComparison]::OrdinalIgnoreCase)) {
+ throw "Native Folder Edit text differed from requested isolated directory: '$actualEditText'"
+}
 Write-Host "BRIDGE_SYNTHETIC_FOLDER_EDIT_$Architecture=PASS"
 [void][FoobarIsolatedUiMessage]::SendMessage(
  $selectHwnd,[uint32]0x00f5,[IntPtr]::Zero,[IntPtr]::Zero)
