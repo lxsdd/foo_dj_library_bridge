@@ -56,7 +56,9 @@ try {
             }
             $count = 0
             while (($line = $sr.ReadLine()) -ne $null) {
-                $parts = $line -split "`t", -1
+                # PowerShell negative split limits suppress the actual TSV split.
+                # Split all tabs and retain trailing empty columns for validation.
+                $parts = $line -split "`t"
                 if ($parts.Count -ne $expectedColumns) { throw "Payload row $($count+2) has $($parts.Count) instead of $expectedColumns columns" }
                 if ([string]::IsNullOrWhiteSpace($parts[24])) { throw "Payload row $($count+2) has empty extra_metadata_json; canonical '{}' expected" }
                 try { $extra = ConvertFrom-Json -InputObject $parts[24] -AsHashtable -NoEnumerate -ErrorAction Stop }
