@@ -277,16 +277,45 @@ while([DateTime]::UtcNow -lt $until) {
  } catch [IO.IOException] {}
  Start-Sleep -Milliseconds 300
 }
-if ($multiFound) {
- Write-Host "BRIDGE_MULTI_CUE_VIRTUAL_TRACKS_$Architecture=OBSERVED count=2"
- foreach($row in $multiRows) {
-  $displayPath=[IO.Path]::GetFileName($row[0])
-  $subsong=$row[1]
-  Write-Host "BRIDGE_MULTI_CUE_OBSERVED_ROW_$Architecture=title:$($row[4]) subsong:$subsong physical:$displayPath"
- }
-} else {
- Write-Host "BRIDGE_MULTI_CUE_VIRTUAL_TRACKS_$Architecture=NOT_OBSERVED generation=$lastObservedGen"
+if (-not $multiFound -or $multiRows.Count -ne 2) {
+ throw 'Real foobar did not expose two distinct virtual subsongs from the two-file CUE.'
 }
+$multiExpected=@{
+ 'Multi File Cue Alpha'=@{Subsong=1;Duration=1}
+ 'Multi File Cue Beta'=@{Subsong=2;Duration=2}
+}
+$seenMulti=[System.Collections.Generic.HashSet[string]]::new(
+ [StringComparer]::OrdinalIgnoreCase)
+$seenMultiFingerprints=[System.Collections.Generic.HashSet[string]]::new(
+ [StringComparer]::OrdinalIgnoreCase)
+foreach($row in $multiRows) {
+ $title=$row[4]
+ if (-not $multiExpected.ContainsKey($title)) {
+  throw 'Unknown title from real multi-file CUE.'
+ }
+ $expected=$multiExpected[$title]
+ $actualSubsong=[int]0
+ if (-not [int]::TryParse($row[1],[ref]$actualSubsong) -or
+     $actualSubsong -ne $expected.Subsong) {
+  throw "Incorrect subtrack index for multi-file cue: $title"
+ }
+ if ([IO.Path]::GetFileName($row[0]) -cne 'Synthetic Multi.cue' -or
+     -not $seenMulti.Add($row[0] + [char]9 + $row[1]) -or
+     $row[23] -notmatch '^[a-f0-9]{16}$' -or
+     -not $seenMultiFingerprints.Add($row[23])) {
+  throw 'Multi-file CUE virtual identity/fingerprint collision.'
+ }
+ $actualDuration=[double]0
+ if (-not [double]::TryParse(
+   $row[19],[Globalization.NumberStyles]::Float,
+   [Globalization.CultureInfo]::InvariantCulture,[ref]$actualDuration) -or
+   [math]::Abs($actualDuration-$expected.Duration) -gt 0.025) {
+  throw "Multi-file CUE virtual duration mismatch: $title"
+ }
+ Write-Host "BRIDGE_MULTI_CUE_TRACK_$Architecture=PASS title:$title subsong:$actualSubsong duration:$actualDuration"
+}
+Write-Host "BRIDGE_MULTI_CUE_VIRTUAL_TRACKS_$Architecture=PASS count=2"
+Write-Host "BRIDGE_MULTI_CUE_IDENTITY_$Architecture=PASS distinct_source_subsong_and_fingerprint"
 Remove-Item -LiteralPath $multiCue -Force -ErrorAction Stop
 Remove-Item -LiteralPath $multiA -Force -ErrorAction Stop
 Remove-Item -LiteralPath $multiB -Force -ErrorAction Stop
