@@ -350,3 +350,14 @@ if (-not $cleanupConfirmed) {
 }
 Write-Host "BRIDGE_MULTI_CUE_CLEANUP_$Architecture=PASS"
 Write-Host "BRIDGE_MULTI_CUE_OBSERVATION_$Architecture=PASS"
+
+# EMBEDDED FLAC CUESHEET: deliberately separate fixture from external CUE.
+# This is a Vorbis-comment CUESHEET field as written by foobar's embedded cue
+# editor, NOT a structural FLAC CUESHEET metadata block. Only actual Media
+# Library events qualify virtual subsongs.
+$preEmbedded=Read-ActualSnapshot
+if ($null -eq $preEmbedded -or $preEmbedded.rows.Count -ne 1) {
+ throw 'No isolated one-row Media Library baseline before FLAC embedded-CUE test.'
+}
+& (Join-Path $PSScriptRoot 'probe-embedded-flac-cue.ps1') -ProfileDirectory $ProfileDirectory -Architecture $Architecture -MediaDirectory $MediaDirectory -BeforeGeneration $preEmbedded.generation
+
