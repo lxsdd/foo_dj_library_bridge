@@ -190,3 +190,122 @@ while([DateTime]::UtcNow -lt $cleanupDeadline) {
 if (-not $clean) {throw 'CUE fixture cleanup not reflected by actual foobar Media Library.'}
 Write-Host "BRIDGE_EXTERNAL_CUE_CLEANUP_$Architecture=PASS"
 Write-Host "BRIDGE_EXTERNAL_CUE_OBSERVATION_$Architecture=PASS"
+
+
+# MULTI-FILE CUE DISCOVERY — separate from already qualified single-WAV CUE.
+# A multi-file sheet references different physical WAV paths; inspect exactly
+# what real foobar handed over, rather than assuming virtual identity values.
+$multiA=Join-Path $MediaDirectory 'Synthetic Multi A.wav'
+$multiB=Join-Path $MediaDirectory 'Synthetic Multi B.wav'
+$multiCue=Join-Path $MediaDirectory 'Synthetic Multi.cue'
+foreach ($p in @($multiA,$multiB,$multiCue)) {
+ if (Test-Path -LiteralPath $p) { throw 'Refusing to overwrite multi-file CUE fixtures.' }
+}
+function New-MultiCueWave([string]$Target,[int]$Seconds) {
+ $length=88200*$Seconds
+ $fs=[IO.File]::Open($Target,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write)
+ try {
+  $w=[IO.BinaryWriter]::new($fs)
+  try {
+   $w.Write([Text.Encoding]::ASCII.GetBytes('RIFF'))
+   $w.Write([int](36+$length))
+   $w.Write([Text.Encoding]::ASCII.GetBytes('WAVEfmt '))
+   $w.Write([int]16);$w.Write([short]1);$w.Write([short]1)
+   $w.Write([int]44100);$w.Write([int]88200)
+   $w.Write([short]2);$w.Write([short]16)
+   $w.Write([Text.Encoding]::ASCII.GetBytes('data'))
+   $w.Write([int]$length)
+   $w.Write([byte[]]::new($length))
+  } finally {$w.Dispose()}
+ } finally {$fs.Dispose()}
+}
+$priorSnap=Read-ActualSnapshot
+if ($null -eq $priorSnap -or $priorSnap.rows.Count -ne 1) {
+ throw 'External CUE cleanup left an unexpected baseline before multi-file test.'
+}
+$baselineGen=$priorSnap.generation
+New-MultiCueWave -Target $multiA -Seconds 1
+New-MultiCueWave -Target $multiB -Seconds 2
+$twoBackingDeadline=[DateTime]::UtcNow.AddSeconds(45)
+$twoBackingGen=0L
+while ([DateTime]::UtcNow -lt $twoBackingDeadline) {
+ try {
+  $snap=Read-ActualSnapshot
+  if ($null -ne $snap -and $snap.generation -gt $baselineGen -and
+      $snap.rows.Count -eq 3) {
+   $backingNames=@($snap.rows | ForEach-Object { [IO.Path]::GetFileName($_[0]) })
+   if ($backingNames -contains 'Synthetic Multi A.wav' -and
+       $backingNames -contains 'Synthetic Multi B.wav' -and
+       $backingNames -contains 'Synthetic 01.wav') {
+    $twoBackingGen=$snap.generation
+    break
+   }
+  }
+ } catch [IO.IOException] {}
+ Start-Sleep -Milliseconds 350
+}
+if ($twoBackingGen -eq 0) { throw 'Real foobar Media Library failed to index both multi-file WAV sources.' }
+Write-Host "BRIDGE_MULTI_CUE_PHYSICAL_SOURCES_$Architecture=PASS count=2"
+$multiContent=@'
+PERFORMER "Bridge CI"
+TITLE "Synthetic Multi-File Album"
+FILE "Synthetic Multi A.wav" WAVE
+  TRACK 01 AUDIO
+    TITLE "Multi File Cue Alpha"
+    INDEX 01 00:00:00
+FILE "Synthetic Multi B.wav" WAVE
+  TRACK 02 AUDIO
+    TITLE "Multi File Cue Beta"
+    INDEX 01 00:00:00
+'@
+[IO.File]::WriteAllText($multiCue,$multiContent,[Text.Encoding]::ASCII)
+Write-Host "BRIDGE_MULTI_CUE_FIXTURE_$Architecture=PASS"
+$multiFound=$false
+$multiRows=@()
+$lastObservedGen=$twoBackingGen
+$until=[DateTime]::UtcNow.AddSeconds(10)
+while([DateTime]::UtcNow -lt $until) {
+ try {
+  $snap=Read-ActualSnapshot
+  if($null -ne $snap) {
+   $lastObservedGen=[math]::Max($lastObservedGen,$snap.generation)
+   $multiRows=@($snap.rows | Where-Object {
+     $_[4] -in @('Multi File Cue Alpha','Multi File Cue Beta')
+   })
+   if($multiRows.Count -eq 2) { $multiFound=$true; break }
+  }
+ } catch [IO.IOException] {}
+ Start-Sleep -Milliseconds 300
+}
+if ($multiFound) {
+ Write-Host "BRIDGE_MULTI_CUE_VIRTUAL_TRACKS_$Architecture=OBSERVED count=2"
+ foreach($row in $multiRows) {
+  $displayPath=[IO.Path]::GetFileName($row[0])
+  $subsong=$row[1]
+  Write-Host "BRIDGE_MULTI_CUE_OBSERVED_ROW_$Architecture=title:$($row[4]) subsong:$subsong physical:$displayPath"
+ }
+} else {
+ Write-Host "BRIDGE_MULTI_CUE_VIRTUAL_TRACKS_$Architecture=NOT_OBSERVED generation=$lastObservedGen"
+}
+Remove-Item -LiteralPath $multiCue -Force -ErrorAction Stop
+Remove-Item -LiteralPath $multiA -Force -ErrorAction Stop
+Remove-Item -LiteralPath $multiB -Force -ErrorAction Stop
+$cleanupDeadline=[DateTime]::UtcNow.AddSeconds(45)
+$cleanupConfirmed=$false
+while ([DateTime]::UtcNow -lt $cleanupDeadline) {
+ try {
+  $snap=Read-ActualSnapshot
+  if ($null -ne $snap -and $snap.generation -gt $twoBackingGen -and
+      $snap.rows.Count -eq 1 -and
+      [IO.Path]::GetFileName($snap.rows[0][0]) -ceq 'Synthetic 01.wav') {
+   $cleanupConfirmed=$true
+   break
+  }
+ } catch [IO.IOException] {}
+ Start-Sleep -Milliseconds 350
+}
+if (-not $cleanupConfirmed) {
+ throw 'foobar did not remove all temporary multi-file CUE WAV/virtual rows.'
+}
+Write-Host "BRIDGE_MULTI_CUE_CLEANUP_$Architecture=PASS"
+Write-Host "BRIDGE_MULTI_CUE_OBSERVATION_$Architecture=PASS"
