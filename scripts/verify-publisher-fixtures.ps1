@@ -13,7 +13,8 @@ $expected = @(
     @{name='g6-restart';    generation=6; count=3;    titles=@('Alpha (updated)','Beta','Burst final')},
     @{name='g7-delete';     generation=7; count=0;    titles=@()},
     @{name='g8-many';       generation=8; count=1024; titles=@()},
-    @{name='g10-recovery';  generation=10;count=1;    titles=@('Recovered after failure')}
+    @{name='g10-recovery';  generation=10;count=1;    titles=@('Recovered after failure')},
+    @{name='g11-large';     generation=11;count=54129;titles=@()}
 )
 $headerFields = @(
     'path','subsong','artist','artists','title','original_title','remixed_by',
@@ -57,6 +58,85 @@ foreach ($stage in $expected) {
     if ($header.Count -ne $headerFields.Count) { throw 'Bad v3 header width' }
     for ($i=0; $i -lt $header.Count; $i++) {
         if ($header[$i] -cne $headerFields[$i]) { throw 'Bad v3 column name or order' }
+    }
+    if ($stage.count -gt 5000) {
+        # Validate whole stream/count/header above. Sample first/middle/last
+        # JSON here; the original C# reader checks all 54,129 identities,
+        # fingerprints, fields and metadata JSON in the next CI step.
+        foreach ($idx in @(1, [int][math]::Floor($stage.count / 2) + 1, $stage.count)) {
+            $cols = @($lines[$idx].Split([char]9))
+            if ($cols.Count -ne 26 -or
+                $cols[0] -notlike 'C:\SyntheticCI\Track*.flac' -or
+                $cols[4] -notlike 'Synthetic library track *' -or
+                $cols[23] -notmatch '^[0-9a-f]{16}
+    $paths = @()
+    $rows = @()
+    if ($lines.Count -gt 1) { $rows = @($lines[1..($lines.Count - 1)]) }
+    foreach ($line in $rows) {
+        if (-not $line) { continue }
+        $v = @($line.Split([char]9))
+        if ($v.Count -ne 26) { throw "Bad v3 row width at $($stage.name)" }
+        $titles += $v[4]
+        $paths += $v[0]
+        if ($v[23] -notmatch '^[a-f0-9]{16}$') { throw 'Missing fingerprint' }
+        if ($fingerprints.ContainsKey($v[0])) { throw 'Duplicate identity in test snapshot' }
+        $fingerprints[$v[0]] = $v[23]
+        $extra = $v[24] | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+        $vectors = $v[25] | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+        if (@($extra.MOOD).Count -ne 2) { throw 'Custom multivalue metadata lost' }
+        if (@($vectors).Count -lt 3) { throw 'Lossless metadata vectors missing' }
+    }
+    if ($stage.count -gt 0) {
+        $sorted = @($paths | Sort-Object -CaseSensitive)
+        for($i=0; $i -lt $paths.Count; $i++) {
+            if ($paths[$i] -cne $sorted[$i]) { throw "Unsorted payload: $($stage.name)" }
+        }
+    }
+    foreach ($expectedTitle in $stage.titles) {
+        if ($titles -cnotcontains $expectedTitle) { throw "Title missing: $expectedTitle" }
+    }
+    if ($stage.name -eq 'g3-edit') {
+        $p = 'C:\SyntheticCI\Track1.flac'
+        if ($previousFingerprints[$p] -eq $fingerprints[$p]) { throw 'Edit did not change fingerprint' }
+    }
+    if ($stage.name -eq 'g4-remove' -and ($fingerprints.ContainsKey('C:\SyntheticCI\Track2.flac'))) {
+        throw 'Removed item still present'
+    }
+    $previousFingerprints = $fingerprints
+    Write-Host "PUBLISHER_GZIP_STAGE_$($stage.generation)=PASS count=$($stage.count)"
+}
+# Failure-injection stage deliberately commits an incomplete generation-9
+# state and does not overwrite generation-8's last valid gzip bytes.
+$failDir = Join-Path (Join-Path $TestRoot 'stages') 'g9-fail-closed'
+$failedLines = @(Get-Content -LiteralPath (Join-Path $failDir 'bridge-state.tsv') -Encoding UTF8)
+if ($failedLines -cnotcontains ("generation" + [char]9 + "9") -or
+    $failedLines -cnotcontains ("complete" + [char]9 + "0") -or
+    $failedLines -cnotcontains ("item_count" + [char]9 + "1")) {
+    throw 'Injected Publisher write failure did not publish complete=0'
+}
+$oldGzip = Join-Path (Join-Path (Join-Path $TestRoot 'stages') 'g8-many') 'digital-items.tsv.gz'
+$failedGzip = Join-Path $failDir 'digital-items.tsv.gz'
+$oldHash = (Get-FileHash -LiteralPath $oldGzip -Algorithm SHA256).Hash
+$failedHash = (Get-FileHash -LiteralPath $failedGzip -Algorithm SHA256).Hash
+if ($oldHash -cne $failedHash) { throw 'Interrupted new publish destroyed the previous gzip payload' }
+$err = Get-Content -Raw -LiteralPath (Join-Path $failDir 'bridge-error.txt')
+if ($err -notmatch 'publish failed') { throw 'Publisher failure did not surface an error state' }
+Write-Host 'PUBLISHER_FAIL_CLOSED_INCOMPLETE_STATE=PASS'
+Write-Host 'PUBLISHER_LAST_GOOD_PAYLOAD_UNCHANGED=PASS'
+Write-Host 'PUBLISHER_RECOVERY_COMPLETE_10=PASS'
+Write-Host 'PUBLISHER_SNAPSHOT_INTEGRITY=PASS'
+) {
+                throw "Malformed Windows-native large stage record $idx"
+            }
+            $extra = $cols[24] | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+            $vectors = @($cols[25] | ConvertFrom-Json -AsHashtable -ErrorAction Stop)
+            if (@($extra.MOOD).Count -ne 2 -or $vectors.Count -lt 3) {
+                throw "Native large stage lost metadata vectors in record $idx"
+            }
+        }
+        Write-Host "PUBLISHER_GZIP_STAGE_$($stage.generation)=PASS count=$($stage.count)"
+        Write-Host 'PUBLISHER_NATIVE_54129_GZIP_STREAM=PASS'
+        continue
     }
     $titles = @()
     $fingerprints = @{}
