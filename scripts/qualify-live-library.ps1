@@ -39,7 +39,7 @@ function New-SilentWave([string]$Path,[int]$Seconds) {
   } finally { $w.Dispose() }
  } finally { $fs.Dispose() }
 }
-$mediaDir=Join-Path (Split-Path -Parent $profile) 'bridge-ci-music'
+$mediaDir=Join-Path (Split-Path -Parent (Split-Path -Parent $profile)) 'bridge-ci-music'
 if (Test-Path -LiteralPath $mediaDir) { throw 'Refusing to reuse test media directory.' }
 New-Item -ItemType Directory -Path $mediaDir -ErrorAction Stop | Out-Null
 $first=Join-Path $mediaDir 'Synthetic 01.wav'
@@ -68,6 +68,23 @@ while ([DateTime]::UtcNow -lt $deadline) {
 }
 if ($null -ne $still) { throw 'Folder chooser did not accept synthetic path.' }
 Write-Host "BRIDGE_SYNTHETIC_FOLDER_SELECTED_$Architecture=PASS"
+$folderListCond=[System.Windows.Automation.PropertyCondition]::new(
+ [System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1233')
+$folderList=$Preferences.FindFirst(
+ [System.Windows.Automation.TreeScope]::Descendants,$folderListCond)
+if ($null -ne $folderList) {
+ $listType=$folderList.Current.ClassName
+ $listHwnd=[IntPtr]::new([int]$folderList.Current.NativeWindowHandle)
+ if ($listType -eq 'SysListView32' -and $listHwnd -ne [IntPtr]::Zero) {
+  $listCount=[FoobarIsolatedUiMessage]::SendMessage(
+   $listHwnd,[uint32]0x1004,[IntPtr]::Zero,[IntPtr]::Zero)
+  Write-Host "BRIDGE_PREFS_MONITORED_FOLDER_ROWS_$Architecture=$($listCount.ToInt64())"
+ } else {
+  Write-Host "BRIDGE_PREFS_MONITORED_FOLDER_ROWS_$Architecture=UNKNOWN_CLASS_$listType"
+ }
+} else {
+ Write-Host "BRIDGE_PREFS_MONITORED_FOLDER_ROWS_$Architecture=NO_LIST"
+}
 $prefsHwnd=[IntPtr]::new([int]$Preferences.Current.NativeWindowHandle)
 if ($prefsHwnd -eq [IntPtr]::Zero) { throw 'Preferences HWND vanished.' }
 [void][FoobarIsolatedUiMessage]::SendMessage(
@@ -79,7 +96,7 @@ $stateFile=Join-Path $dir 'bridge-state.tsv'
 $gzipFile=Join-Path $dir 'digital-items.tsv.gz'
 function Wait-BridgeSnapshot([int]$ExpectedCount,[long]$PreviousGeneration,
  [string[]]$TrackNames,[string]$Phase) {
- $deadline=[DateTime]::UtcNow.AddSeconds(90)
+ $deadline=[DateTime]::UtcNow.AddSeconds(45)
  $observed=''
  while ([DateTime]::UtcNow -lt $deadline) {
   try {
