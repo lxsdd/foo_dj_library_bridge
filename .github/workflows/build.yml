@@ -77,6 +77,10 @@ jobs:
           $hash = (Get-FileHash -LiteralPath $sdk -Algorithm SHA256).Hash.ToLowerInvariant()
           Write-Host "OFFICIAL_FOOBAR_SDK_2026_09_17_SIZE=$size"
           Write-Host "OFFICIAL_FOOBAR_SDK_2026_09_17_SHA256=$hash"
+      - name: Exercise SHA-pinned local dual-architecture candidate without uploading
+        if: matrix.platform == 'x64' && github.event_name == 'pull_request'
+        shell: pwsh
+        run: ./scripts/local-acceptance-build.ps1 -SourceSha '${{ github.event.pull_request.head.sha }}' -OutputDirectory "$env:RUNNER_TEMP\Bridge-private-acceptance"
 
       - name: Upload DLL
         if: false # Temporary rights gate: build and test only
