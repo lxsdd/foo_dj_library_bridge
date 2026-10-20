@@ -75,6 +75,20 @@ jobs:
             & "out/${{ matrix.platform }}/Release/publisher_integration.exe" $testRoot
             if ($LASTEXITCODE -ne 0) { throw 'Native Publisher test failed' }
             & ./scripts/verify-publisher-fixtures.ps1 -TestRoot $testRoot
+            # Use the exact original DJ Library reader, not a test-only replacement.
+            $readerCommit = '211e85726bcc7e63ce0f9b81f04c2e61257dc5d8'
+            $readerBlob = '7ec0d945e5a31443c4e38b6fe72439ad07f6dc4a'
+            $readerFile = Join-Path $testRoot 'OriginalBridgeSnapshot.cs'
+            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/lxsdd/dj-library-public/$readerCommit/src/BridgeSnapshot.cs" -OutFile $readerFile -ErrorAction Stop
+            $actualBlob = (& git hash-object -- $readerFile).Trim()
+            if ($LASTEXITCODE -ne 0 -or $actualBlob -cne $readerBlob) {
+              throw "Original DJ Library reader SHA mismatch: $actualBlob"
+            }
+            $consumerOut = Join-Path $testRoot 'native-consumer'
+            & dotnet build 'tests/native-consumer/BridgeNativeWindowsConsumer.csproj' -c Release "-p:ExternalBridgeSource=$readerFile" -o $consumerOut --nologo
+            if ($LASTEXITCODE -ne 0) { throw 'Original DJ Library reader compilation failed' }
+            & dotnet (Join-Path $consumerOut 'BridgeNativeWindowsConsumer.dll') $testRoot
+            if ($LASTEXITCODE -ne 0) { throw 'Actual native Publisher to original DJ Library C# consumer validation failed' }
           } finally {
             if (Test-Path -LiteralPath $testRoot) {
               Remove-Item -LiteralPath $testRoot -Recurse -Force
