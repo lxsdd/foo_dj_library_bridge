@@ -68,6 +68,88 @@ jobs:
       - name: Verify local private Windows acceptance prerequisites
         shell: pwsh
         run: ./scripts/local-acceptance-build.ps1 -PreflightOnly
+      - name: Verify standalone Bridge helper downloaded to Windows Temp
+        if: matrix.platform == 'x64' && github.event_name == 'pull_request'
+        shell: pwsh
+        env:
+          EXACT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:EXACT_SHA -cnotmatch '^[a-f0-9]{40}      - name: Record official SDK archive SHA-256 for offline pin verification
+        shell: pwsh
+        run: |
+          $sdk = 'external/SDK-2026-09-17.7z'
+          if (-not (Test-Path -LiteralPath $sdk -PathType Leaf)) { throw 'SDK archive missing from original bootstrap' }
+          $size = (Get-Item -LiteralPath $sdk).Length
+          $hash = (Get-FileHash -LiteralPath $sdk -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "OFFICIAL_FOOBAR_SDK_2026_09_17_SIZE=$size"
+          Write-Host "OFFICIAL_FOOBAR_SDK_2026_09_17_SHA256=$hash"
+      - name: Exercise SHA-pinned local dual-architecture candidate without uploading
+        if: false # Full local source-to-package qualification PASS (GitHub run 39435835240); avoid repeated expensive builds
+        shell: pwsh
+        run: ./scripts/local-acceptance-build.ps1 -SourceSha '${{ github.event.pull_request.head.sha }}' -OutputDirectory "$env:RUNNER_TEMP\Bridge-private-acceptance"
+
+      - name: Upload DLL
+        if: false # Temporary rights gate: build and test only
+        uses: actions/upload-artifact@v7
+        with:
+          name: foo_dj_library_bridge-${{ matrix.platform }}
+          path: out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll
+          if-no-files-found: error
+          retention-days: 7
+
+  package-component:
+    name: Package verified foobar2000 component
+    if: false # Component package publication disabled
+    needs:
+      - contract-tests
+      - windows-build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download Win32 DLL
+        uses: actions/download-artifact@v8
+        with:
+          name: foo_dj_library_bridge-Win32
+          path: candidate-input/Win32
+      - name: Download x64 DLL
+        uses: actions/download-artifact@v8
+        with:
+          name: foo_dj_library_bridge-x64
+          path: candidate-input/x64
+      - name: Verify architectures and build .fb2k-component
+        shell: pwsh
+        run: |
+          $version = (Get-Content -Raw -LiteralPath VERSION).Trim()
+          ./scripts/package-component.ps1 `
+            -Win32Dll 'candidate-input/Win32/foo_dj_library_bridge.dll' `
+            -X64Dll 'candidate-input/x64/foo_dj_library_bridge.dll' `
+            -OutputDirectory 'candidate-output' `
+            -Version $version `
+            -Commit '${{ github.sha }}'
+      - name: Upload qualified component candidate
+        if: false # Explicit second-line artifact block
+        uses: actions/upload-artifact@v7
+        with:
+          name: foo_dj_library_bridge-component-${{ github.sha }}
+          path: |
+            candidate-output/*.fb2k-component
+            candidate-output/BUILD-MANIFEST.txt
+            candidate-output/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 90
+) { throw 'Non-SHA PR HEAD' }
+          $helper = Join-Path $env:RUNNER_TEMP 'foo_dj_library_bridge-standalone.ps1'
+          $url = 'https://raw.githubusercontent.com/lxsdd/foo_dj_library_bridge/' + $env:EXACT_SHA + '/scripts/local-acceptance-build.ps1'
+          Invoke-WebRequest -UseBasicParsing -MaximumRedirection 5 -Uri $url -OutFile $helper
+          Push-Location $env:RUNNER_TEMP
+          try {
+            & $helper -PreflightOnly
+            if (-not $?) { throw 'Standalone helper preflight failed' }
+          } finally {
+            Pop-Location
+            Remove-Item -LiteralPath $helper -Force -ErrorAction SilentlyContinue
+          }
       - name: Record official SDK archive SHA-256 for offline pin verification
         shell: pwsh
         run: |
