@@ -39,12 +39,15 @@ Write-Host "FOOBAR_UI_DIAGNOSTIC_$Architecture=TOP_WINDOWS $($windows.Count)"
 # WM_COMMAND/IDOK is equivalent to clicking its OK control (UI Automation id 1).
 Add-Type -TypeDefinition @'
 using System;
+using System.Text;
 using System.Runtime.InteropServices;
 public static class FoobarIsolatedUiMessage {
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern IntPtr SendMessage(IntPtr hwnd, UInt32 msg, IntPtr wp, IntPtr lp);
     [DllImport("user32.dll", EntryPoint="SendMessageW", CharSet=CharSet.Unicode)]
     public static extern IntPtr SendMessageText(IntPtr hwnd, UInt32 msg, IntPtr wp, string lp);
+    [DllImport("user32.dll", EntryPoint="SendMessageW", CharSet=CharSet.Unicode)]
+    public static extern IntPtr GetEditText(IntPtr hwnd, UInt32 msg, IntPtr capacity, [Out] StringBuilder text);
 }
 '@ -ErrorAction Stop
 $uiName = [System.Windows.Automation.AutomationElement]::NameProperty
