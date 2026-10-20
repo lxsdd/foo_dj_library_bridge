@@ -52,7 +52,37 @@ if ($FolderEdit.Current.ClassName -ne 'Edit' -or $SelectButton.Current.ClassName
 }
 $editHwnd=[IntPtr]::new([int]$FolderEdit.Current.NativeWindowHandle)
 $selectHwnd=[IntPtr]::new([int]$SelectButton.Current.NativeWindowHandle)
-if ($editHwnd -eq [IntPtr]::Zero -or $selectHwnd -eq [IntPtr]::Zero) { throw 'Missing native picker HWND.' }
+$pickerHwnd=[IntPtr]::new([int]$Picker.Current.NativeWindowHandle)
+if ($editHwnd -eq [IntPtr]::Zero -or $selectHwnd -eq [IntPtr]::Zero -or
+    $pickerHwnd -eq [IntPtr]::Zero) { throw 'Missing isolated Folder Picker HWND.' }
+$process = @(Get-Process -Name foobar2000 -ErrorAction Stop)
+if ($process.Count -ne 1) { throw 'Expected exactly one disposable foobar process.' }
+foreach ($handle in @($pickerHwnd,$editHwnd,$selectHwnd)) {
+    $ownerPid=[uint32]0
+    [void][FoobarIsolatedUiMessage]::GetWindowThreadProcessId($handle,[ref]$ownerPid)
+    if ($ownerPid -ne [uint32]$process[0].Id) {
+        throw 'Refusing input into a control not owned by isolated foobar process.'
+    }
+}
+function Invoke-DisposableRealMouseClick([System.Windows.Automation.AutomationElement]$Control) {
+    $r=$Control.Current.BoundingRectangle
+    if ($r.Width -lt 3 -or $r.Height -lt 3 -or
+        [math]::Abs($r.Left) -gt 10000 -or [math]::Abs($r.Top) -gt 10000) {
+        throw 'Isolated Windows control is not visibly clickable.'
+    }
+    $cx=[int][math]::Round($r.Left+$r.Width/2)
+    $cy=[int][math]::Round($r.Top+$r.Height/2)
+    if (-not [FoobarIsolatedUiMessage]::SetCursorPos($cx,$cy)) {
+        throw 'Cannot move isolated runner cursor to native picker control.'
+    }
+    Start-Sleep -Milliseconds 60
+    [FoobarIsolatedUiMessage]::mouse_event([uint32]2,0,0,0,[UIntPtr]::Zero)
+    Start-Sleep -Milliseconds 75
+    [FoobarIsolatedUiMessage]::mouse_event([uint32]4,0,0,0,[UIntPtr]::Zero)
+}
+[void][FoobarIsolatedUiMessage]::SetForegroundWindow($pickerHwnd)
+Invoke-DisposableRealMouseClick -Control $FolderEdit
+Write-Host "BRIDGE_NATIVE_FOLDER_EDIT_REAL_FOCUS_$Architecture=PASS"
 $set=[FoobarIsolatedUiMessage]::SendMessageText(
  $editHwnd,[uint32]0x000c,[IntPtr]::Zero,$mediaDir)
 if ($set -eq [IntPtr]::Zero) { throw 'Native folder edit rejected WM_SETTEXT.' }
@@ -67,26 +97,20 @@ Write-Host "BRIDGE_SYNTHETIC_FOLDER_EDIT_$Architecture=PASS"
 # A shell Folder Picker accepts a typed absolute path through the edit field
 # only after the path is navigated/committed with Enter. BM_CLICK alone can
 # dismiss the chooser while leaving the monitored-folder list empty.
-[void][FoobarIsolatedUiMessage]::SendMessage(
- $editHwnd,[uint32]0x0100,[IntPtr]::new(13),[IntPtr]::Zero)
-[void][FoobarIsolatedUiMessage]::SendMessage(
- $editHwnd,[uint32]0x0101,[IntPtr]::new(13),[IntPtr]::Zero)
+[FoobarIsolatedUiMessage]::keybd_event([byte]13,[byte]0,[uint32]0,[UIntPtr]::Zero)
+Start-Sleep -Milliseconds 70
+[FoobarIsolatedUiMessage]::keybd_event([byte]13,[byte]0,[uint32]2,[UIntPtr]::Zero)
+Write-Host "BRIDGE_NATIVE_FOLDER_ENTER_REAL_INPUT_$Architecture=PASS"
 Start-Sleep -Milliseconds 450
 $pickerAfterEnter=$FirstWindow.FindFirst(
  [System.Windows.Automation.TreeScope]::Descendants,$PickerCondition)
 Write-Host "BRIDGE_SYNTHETIC_FOLDER_ENTER_$Architecture=$(if($null -eq $pickerAfterEnter){'PICKER_CLOSED'}else{'PICKER_OPEN'})"
 if ($null -ne $pickerAfterEnter) {
- $invocation = $null
- $supportsInvoke = $SelectButton.TryGetCurrentPattern(
-  [System.Windows.Automation.InvokePattern]::Pattern,[ref]$invocation)
- Write-Host "BRIDGE_SYNTHETIC_FOLDER_SELECT_INVOKE_$Architecture=$supportsInvoke"
- if ($supportsInvoke) {
-  $invocation.Invoke()
- } else {
-  # Explicitly fail instead of pretending a native BM_CLICK has committed
-  # the selected directory to foobar's Media Library.
-  throw 'The isolated folder chooser exposes no supported InvokePattern.'
- }
+ # Native BM_CLICK and UIA InvokePattern do not reliably dispatch the modern
+ # Windows Shell folder chooser. Use a real OS mouse action, restricted to its
+ # verified control in the runner's *own* disposable foobar process.
+ Invoke-DisposableRealMouseClick -Control $SelectButton
+ Write-Host "BRIDGE_NATIVE_FOLDER_SELECT_REAL_INPUT_$Architecture=PASS"
 }
 $deadline=[DateTime]::UtcNow.AddSeconds(15)
 $still=$Picker
