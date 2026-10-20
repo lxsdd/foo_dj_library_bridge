@@ -27,7 +27,7 @@ jobs:
       - name: Parse new host automation scripts before Windows builds
         shell: pwsh
         run: |
-          foreach ($name in @('scripts/probe-foobar-media-library-ui.ps1','scripts/qualify-live-library.ps1','scripts/verify-nonempty-host-restart.ps1','scripts/probe-external-cue.ps1')) {
+          foreach ($name in @('scripts/probe-foobar-media-library-ui.ps1','scripts/qualify-live-library.ps1','scripts/verify-nonempty-host-restart.ps1','scripts/probe-external-cue.ps1','scripts/enable-cue-indexing-disposable.ps1')) {
             $tokens = $null
             $parseErrors = $null
             [System.Management.Automation.Language.Parser]::ParseFile(
