@@ -60,15 +60,27 @@ foreach ($stage in $expected) {
         if ($header[$i] -cne $headerFields[$i]) { throw 'Bad v3 column name or order' }
     }
     if ($stage.count -gt 5000) {
-        # Validate whole stream/count/header above. Sample first/middle/last
-        # JSON here; the original C# reader checks all 54,129 identities,
-        # fingerprints, fields and metadata JSON in the next CI step.
-        foreach ($idx in @(1, [int][math]::Floor($stage.count / 2) + 1, $stage.count)) {
+        # Full gzip/header/row count above; original C# reader checks all rows.
+        foreach ($idx in @(1, ([int][math]::Floor($stage.count / 2) + 1), $stage.count)) {
             $cols = @($lines[$idx].Split([char]9))
             if ($cols.Count -ne 26 -or
                 $cols[0] -notlike 'C:\SyntheticCI\Track*.flac' -or
                 $cols[4] -notlike 'Synthetic library track *' -or
-                $cols[23] -notmatch '^[0-9a-f]{16}
+                $cols[23] -notmatch '^[0-9a-f]{16}$') {
+                throw "Malformed Windows-native large stage record $idx"
+            }
+            $extra = $cols[24] | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+            $vectors = @($cols[25] | ConvertFrom-Json -AsHashtable -ErrorAction Stop)
+            if (@($extra.MOOD).Count -ne 2 -or $vectors.Count -lt 3) {
+                throw "Native large stage lost metadata vectors in record $idx"
+            }
+        }
+        Write-Host "PUBLISHER_GZIP_STAGE_$($stage.generation)=PASS count=$($stage.count)"
+        Write-Host 'PUBLISHER_NATIVE_54129_GZIP_STREAM=PASS'
+        continue
+    }
+    $titles = @()
+    $fingerprints = @{}
     $paths = @()
     $rows = @()
     if ($lines.Count -gt 1) { $rows = @($lines[1..($lines.Count - 1)]) }
