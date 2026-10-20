@@ -65,6 +65,16 @@ jobs:
       - name: Bootstrap exact foobar2000 SDK and build with VS2022 toolset
         shell: pwsh
         run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset v143
+      - name: Record official SDK archive SHA-256 for offline pin verification
+        shell: pwsh
+        run: |
+          $sdk = 'external/SDK-2026-09-17.7z'
+          if (-not (Test-Path -LiteralPath $sdk -PathType Leaf)) { throw 'SDK archive missing from original bootstrap' }
+          $size = (Get-Item -LiteralPath $sdk).Length
+          $hash = (Get-FileHash -LiteralPath $sdk -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "OFFICIAL_FOOBAR_SDK_2026_09_17_SIZE=$size"
+          Write-Host "OFFICIAL_FOOBAR_SDK_2026_09_17_SHA256=$hash"
+
       - name: Upload DLL
         if: false # Temporary rights gate: build and test only
         uses: actions/upload-artifact@v7
