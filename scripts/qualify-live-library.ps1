@@ -57,12 +57,26 @@ if ($editHwnd -eq [IntPtr]::Zero -or $selectHwnd -eq [IntPtr]::Zero -or
     $pickerHwnd -eq [IntPtr]::Zero) { throw 'Missing isolated Folder Picker HWND.' }
 $process = @(Get-Process -Name foobar2000 -ErrorAction Stop)
 if ($process.Count -ne 1) { throw 'Expected exactly one disposable foobar process.' }
-foreach ($handle in @($pickerHwnd,$editHwnd,$selectHwnd)) {
+$owners = [System.Collections.Generic.List[string]]::new()
+$unexpectedOwner = $false
+foreach ($controlSpec in @(
+    @{ Role='picker'; Handle=$pickerHwnd },
+    @{ Role='edit';   Handle=$editHwnd },
+    @{ Role='select'; Handle=$selectHwnd }
+)) {
     $ownerPid=[uint32]0
-    [void][FoobarIsolatedUiMessage]::GetWindowThreadProcessId($handle,[ref]$ownerPid)
-    if ($ownerPid -ne [uint32]$process[0].Id) {
-        throw 'Refusing input into a control not owned by isolated foobar process.'
-    }
+    [void][FoobarIsolatedUiMessage]::GetWindowThreadProcessId(
+        $controlSpec.Handle,[ref]$ownerPid)
+    $ownerName = 'UNRESOLVED'
+    try {
+        $ownerName = (Get-Process -Id $ownerPid -ErrorAction Stop).ProcessName
+    } catch {}
+    $trustedFoobar = ($ownerPid -eq [uint32]$process[0].Id)
+    Write-Host "BRIDGE_PICKER_CONTROL_OWNER_$Architecture=$($controlSpec.Role) process:$ownerName foobar:$trustedFoobar"
+    if (-not $trustedFoobar) { $unexpectedOwner=$true }
+}
+if ($unexpectedOwner) {
+    throw 'UI control owner differs from foobar: no real input sent until the Windows shell host is identified.'
 }
 function Invoke-DisposableRealMouseClick([System.Windows.Automation.AutomationElement]$Control) {
     $r=$Control.Current.BoundingRectangle
