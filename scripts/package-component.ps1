@@ -57,8 +57,8 @@ $componentHash = (Get-FileHash -LiteralPath $component -Algorithm SHA256).Hash.T
 @(
     "version=$Version",
     "commit=$Commit",
-    "root_dll_machine=0x{0:X4}" -f $win32Machine,
-    "x64_dll_machine=0x{0:X4}" -f $x64Machine,
+    ("root_dll_machine=0x{0:X4}" -f $win32Machine),
+    ("x64_dll_machine=0x{0:X4}" -f $x64Machine),
     "root_dll_sha256=$win32Hash",
     "x64_dll_sha256=$x64Hash",
     "component_sha256=$componentHash",
