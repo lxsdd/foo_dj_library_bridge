@@ -152,6 +152,21 @@ if ($prefWindows.Count -eq 1) {
             Write-Host "FOOBAR_PREFS_MEDIA_LIBRARY_$Architecture=$($foundMediaLibrary.ToString().ToUpperInvariant()) traversed=$count"
 
             if ($foundMediaLibrary) {
+                # Read-only discovery of the official Media Library file-type
+                # exclusion controls. Never log profile-specific values.
+                $editNodes = @($prefs.FindAll(
+                    [System.Windows.Automation.TreeScope]::Descendants,
+                    [System.Windows.Automation.Condition]::TrueCondition) |
+                    Where-Object { $_.Current.ClassName -eq 'Edit' })
+                foreach ($editNode in $editNodes) {
+                    $editId=$editNode.Current.AutomationId
+                    $editType=$editNode.Current.ControlType.ProgrammaticName
+                    $editName=$editNode.Current.Name
+                    if ($editName -match '[A-Za-z]:\\|[/\\]') { $editName='[redacted]' }
+                    if ($editName.Length -gt 55) { $editName=$editName.Substring(0,55) }
+                    Write-Host "FOOBAR_CUE_FILETYPES_EDIT_$Architecture=id:$editId type:$editType name:$editName"
+                }
+                Write-Host "FOOBAR_CUE_FILETYPES_EDIT_COUNT_$Architecture=$($editNodes.Count)"
                 $buttonCond = [System.Windows.Automation.PropertyCondition]::new(
                     [System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1234')
                 $button = $prefs.FindFirst(
