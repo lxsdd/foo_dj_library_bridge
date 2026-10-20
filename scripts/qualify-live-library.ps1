@@ -92,6 +92,23 @@ if ($null -ne $folderList) {
 } else {
  Write-Host "BRIDGE_PREFS_MONITORED_FOLDER_ROWS_$Architecture=NO_LIST"
 }
+# The foobar Media Library monitored-folder list is a custom libPPUI
+# CListControl, NOT SysListView32. Inspect it via UI Automation's observed
+# rows; never send an unsupported native ListView message.
+if ($null -ne $folderList) {
+ $listChildren = @($folderList.FindAll(
+  [System.Windows.Automation.TreeScope]::Children,
+  [System.Windows.Automation.Condition]::TrueCondition))
+ Write-Host "BRIDGE_PREFS_FOLDER_LIST_CHILDREN_$Architecture=$($listChildren.Count)"
+ $foundSyntheticFolder = $false
+ foreach ($child in $listChildren) {
+  $name = $child.Current.Name
+  $class = $child.Current.ClassName
+  if ($name -like '*bridge-ci-music*') { $foundSyntheticFolder = $true }
+  Write-Host "BRIDGE_PREFS_FOLDER_LIST_CHILD_$Architecture=class:$class synthetic:$($name -like '*bridge-ci-music*')"
+ }
+ Write-Host "BRIDGE_PREFS_FOLDER_PRESENT_$Architecture=$($foundSyntheticFolder.ToString().ToUpperInvariant())"
+}
 $prefsHwnd=[IntPtr]::new([int]$Preferences.Current.NativeWindowHandle)
 if ($prefsHwnd -eq [IntPtr]::Zero) { throw 'Preferences HWND vanished.' }
 [void][FoobarIsolatedUiMessage]::SendMessage(
