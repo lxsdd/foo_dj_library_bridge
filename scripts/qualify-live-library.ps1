@@ -196,6 +196,46 @@ if ($null -ne $folderList) {
  }
 
 }
+# The real Add Folder(s) selector has now closed. Only NOW clear the
+# factory *.CUE exclusion, so the folder-selection transaction cannot be
+# disturbed by another unrelated pending Preferences change.
+$cueExcludeNodes=@($Preferences.FindAll(
+ [System.Windows.Automation.TreeScope]::Descendants,
+ [System.Windows.Automation.Condition]::TrueCondition) | Where-Object {
+ $_.Current.ClassName -eq 'Edit' -and $_.Current.Name -ceq '*.CUE'
+})
+if ($cueExcludeNodes.Count -ne 1) {
+ throw 'Cannot uniquely identify factory *.CUE exclusion in disposable host.'
+}
+$cueHwnd=[IntPtr]::new([int]$cueExcludeNodes[0].Current.NativeWindowHandle)
+if ($cueHwnd -eq [IntPtr]::Zero) {throw 'Missing isolated CUE exclusion Edit HWND.'}
+$cuePid=[uint32]0
+[void][FoobarIsolatedUiMessage]::GetWindowThreadProcessId($cueHwnd,[ref]$cuePid)
+if ($cuePid -ne [uint32]$process[0].Id) {
+ throw 'CUE exclusion edit is not owned by isolated foobar.'
+}
+$foobarExe=[IO.Path]::GetFullPath(
+ (Join-Path (Split-Path -Parent $profile) 'foobar2000.exe'))
+if (-not [string]::Equals(
+ [IO.Path]::GetFullPath($process[0].Path),$foobarExe,
+ [StringComparison]::OrdinalIgnoreCase)) {
+ throw 'CUE exclusion edit owner is not the verified disposable foobar.'
+}
+$beforeCue=[Text.StringBuilder]::new(512)
+[void][FoobarIsolatedUiMessage]::GetEditText(
+ $cueHwnd,[uint32]0x000d,[IntPtr]::new(512),$beforeCue)
+if ($beforeCue.ToString() -cne '*.CUE') {
+ throw 'Unexpected native CUE exclusion value. No settings changed.'
+}
+$cueSet=[FoobarIsolatedUiMessage]::SendMessageText(
+ $cueHwnd,[uint32]0x000c,[IntPtr]::Zero,'')
+$afterCue=[Text.StringBuilder]::new(512)
+[void][FoobarIsolatedUiMessage]::GetEditText(
+ $cueHwnd,[uint32]0x000d,[IntPtr]::new(512),$afterCue)
+if ($cueSet -eq [IntPtr]::Zero -or $afterCue.Length -ne 0) {
+ throw 'Could not lift isolated *.CUE exclusion.'
+}
+Write-Host "FOOBAR_CUE_EXCLUSION_CLEAR_$Architecture=PASS temporary_profile_only"
 $prefsHwnd=[IntPtr]::new([int]$Preferences.Current.NativeWindowHandle)
 if ($prefsHwnd -eq [IntPtr]::Zero) { throw 'Preferences HWND vanished.' }
 [void][FoobarIsolatedUiMessage]::SendMessage(
