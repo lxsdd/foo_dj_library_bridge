@@ -48,7 +48,7 @@ $stateFile=Join-Path (Join-Path $ProfileDirectory 'foo_dj_library_bridge') 'brid
 $payload=Join-Path (Join-Path $ProfileDirectory 'foo_dj_library_bridge') 'digital-items.tsv.gz'
 function Read-ActualSnapshot {
  $state=@{}
- foreach($l in Get-Content -LiteralPath $stateFile -Encoding UTF8) {
+ foreach($l in (Get-Content -LiteralPath $stateFile -Encoding UTF8)) {
   $p=$l.Split([char]9,2)
   if ($p.Count -eq 2) { $state[$p[0]]=$p[1] }
  }
