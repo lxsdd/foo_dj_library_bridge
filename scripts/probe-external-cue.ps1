@@ -135,17 +135,16 @@ while([DateTime]::UtcNow -lt $monitorUntil) {
  Start-Sleep -Milliseconds 300
 }
 if (-not $virtualObserved) {
- throw 'External CUE was explicitly enabled but no virtual subsongs reached the real Bridge snapshot.'
+ throw 'External CUE enabled but no virtual subsongs reached the real Bridge snapshot.'
 }
 if ($readableVirtualTracks -ne 2) {
- throw "External two-track CUE exposed $readableVirtualTracks virtual handles instead of two."
+ throw "External two-track CUE exposed $readableVirtualTracks handles instead of two."
 }
-$cueTitles=@($observedVirtual | ForEach-Object {$_[4]} | Sort-Object)
+$cueTitles=@($observedVirtual | ForEach-Object { $_[4] } | Sort-Object)
 if ($cueTitles.Count -ne 2 -or
     $cueTitles[0] -cne 'Virtual Cue Part One' -or
     $cueTitles[1] -cne 'Virtual Cue Part Two') {
- throw ('Actual CUE metadata did not match the two synthetic track titles: ' +
-        ($cueTitles -join ', '))
+ throw 'Real foobar CUE track title metadata differs from fixture.'
 }
 $cueIdentities=[System.Collections.Generic.HashSet[string]]::new(
  [StringComparer]::OrdinalIgnoreCase)
@@ -155,38 +154,16 @@ foreach($v in $observedVirtual) {
   throw 'CUE virtual track exposed an invalid subsong index.'
  }
  if ($v[0] -notlike '*Synthetic CUE image*' -or
-     $v[23] -notmatch '^[a-f0-9]{16}
-# Remove only newly created runner fixture files. The original test's 2s WAV
-# must survive and will be qualified after this cleanup plus host restart.
-Remove-Item -LiteralPath $cuePath -Force -ErrorAction Stop
-Remove-Item -LiteralPath $backing -Force -ErrorAction Stop
-$cleanupDeadline=[DateTime]::UtcNow.AddSeconds(40)
-$clean=$false
-while([DateTime]::UtcNow -lt $cleanupDeadline) {
- try {
-  $snap=Read-ActualSnapshot
-  if ($null -ne $snap -and $snap.generation -gt $backingGeneration -and
-      $snap.rows.Count -eq 1 -and
-      [IO.Path]::GetFileName($snap.rows[0][0]) -ceq 'Synthetic 01.wav') {
-   $clean=$true
-   break
-  }
- } catch [IO.IOException] {}
- Start-Sleep -Milliseconds 350
-}
-if (-not $clean) {throw 'CUE fixture cleanup not reflected by actual foobar Media Library.'}
-Write-Host "BRIDGE_EXTERNAL_CUE_CLEANUP_$Architecture=PASS"
-Write-Host "BRIDGE_EXTERNAL_CUE_OBSERVATION_$Architecture=PASS"
- -or
+     $v[23] -notmatch '^[a-f0-9]{16}$' -or
      -not $cueIdentities.Add($v[0] + [char]9 + $v[1])) {
-  throw 'Virtual CUE identity, backing source or fingerprint is invalid.'
+  throw 'CUE virtual track source identity or fingerprint mismatch.'
  }
  $seconds=[double]0
  if (-not [double]::TryParse(
        $v[19],[Globalization.NumberStyles]::Float,
        [Globalization.CultureInfo]::InvariantCulture,[ref]$seconds) -or
      [math]::Abs($seconds-2.0) -gt 0.025) {
-  throw 'Virtual CUE track has incorrect expected two-second duration.'
+  throw 'CUE virtual track duration differs from expected 2 seconds.'
  }
  Write-Host "BRIDGE_EXTERNAL_CUE_TRACK_$Architecture=PASS subsong:$sub title:$($v[4]) duration:2"
 }
