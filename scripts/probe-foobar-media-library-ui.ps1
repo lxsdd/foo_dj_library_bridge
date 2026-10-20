@@ -147,7 +147,40 @@ if ($prefWindows.Count -eq 1) {
                 # Open only the chooser. No path has been selected or committed.
                 [void][FoobarIsolatedUiMessage]::SendMessage(
                     $btnHandle,[uint32]0x00f5,[IntPtr]::Zero,[IntPtr]::Zero)
-                Start-Sleep -Milliseconds 700
+                $pickerCond = [System.Windows.Automation.PropertyCondition]::new(
+                    $uiName,'Add Folder(s)')
+                $picker = $null
+                $pickerDeadline = [DateTime]::UtcNow.AddSeconds(12)
+                while ([DateTime]::UtcNow -lt $pickerDeadline) {
+                    $picker = $firstWindow.FindFirst(
+                        [System.Windows.Automation.TreeScope]::Descendants,$pickerCond)
+                    if ($null -ne $picker) { break }
+                    Start-Sleep -Milliseconds 250
+                }
+                if ($null -eq $picker) {
+                    throw "Isolated Media Library Folder Picker did not appear ($Architecture)"
+                }
+                $folderEditCond = [System.Windows.Automation.PropertyCondition]::new(
+                    [System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1152')
+                $folderEdit = $picker.FindFirst(
+                    [System.Windows.Automation.TreeScope]::Descendants,$folderEditCond)
+                if ($null -ne $folderEdit) {
+                    $editClass = $folderEdit.Current.ClassName
+                    $editHwnd = $folderEdit.Current.NativeWindowHandle
+                    $pattern = [System.Windows.Automation.ValuePattern]::Pattern
+                    $value = $null
+                    $hasValuePattern = $folderEdit.TryGetCurrentPattern($pattern,[ref]$value)
+                    Write-Host "FOOBAR_LIBRARY_FOLDER_EDIT_$Architecture=class:$editClass,hwnd:$editHwnd,valuePattern:$hasValuePattern"
+                } else {
+                    Write-Host "FOOBAR_LIBRARY_FOLDER_EDIT_$Architecture=MISSING"
+                }
+                $selectCond = [System.Windows.Automation.PropertyCondition]::new(
+                    [System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1')
+                $selectBtn = $picker.FindFirst(
+                    [System.Windows.Automation.TreeScope]::Descendants,$selectCond)
+                if ($null -ne $selectBtn) {
+                    Write-Host "FOOBAR_LIBRARY_FOLDER_SELECT_$Architecture=class:$($selectBtn.Current.ClassName),hwnd:$($selectBtn.Current.NativeWindowHandle)"
+                }
                 $windows = @($root.FindAll(
                     [System.Windows.Automation.TreeScope]::Children,
                     [System.Windows.Automation.Condition]::TrueCondition) |
