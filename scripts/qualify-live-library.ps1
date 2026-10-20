@@ -105,9 +105,19 @@ if ($null -ne $folderList) {
   $name = $child.Current.Name
   $class = $child.Current.ClassName
   if ($name -like '*bridge-ci-music*') { $foundSyntheticFolder = $true }
-  Write-Host "BRIDGE_PREFS_FOLDER_LIST_CHILD_$Architecture=class:$class synthetic:$($name -like '*bridge-ci-music*')"
+  $safeName = if ($name -match 'bridge-ci-music') { '[synthetic folder]' } elseif ($name -match '[A-Za-z]:\\|[/\\]') { '[path redacted]' } else { $name }
+  Write-Host "BRIDGE_PREFS_FOLDER_LIST_CHILD_$Architecture=class:$class name:$safeName synthetic:$($name -like '*bridge-ci-music*')"
  }
  Write-Host "BRIDGE_PREFS_FOLDER_PRESENT_$Architecture=$($foundSyntheticFolder.ToString().ToUpperInvariant())"
+ $listDescendants = @($folderList.FindAll(
+  [System.Windows.Automation.TreeScope]::Descendants,
+  [System.Windows.Automation.Condition]::TrueCondition))
+ $folderDescendantMatches = @($listDescendants | Where-Object { $_.Current.Name -like '*bridge-ci-music*' }).Count
+ Write-Host "BRIDGE_PREFS_FOLDER_LIST_DESCENDANTS_$Architecture=$($listDescendants.Count) syntheticMatches=$folderDescendantMatches"
+ if (-not $foundSyntheticFolder -and $folderDescendantMatches -eq 0) {
+  Write-Host "BRIDGE_PREFS_FOLDER_REGISTRATION_$Architecture=NOT_PROVEN"
+ }
+
 }
 $prefsHwnd=[IntPtr]::new([int]$Preferences.Current.NativeWindowHandle)
 if ($prefsHwnd -eq [IntPtr]::Zero) { throw 'Preferences HWND vanished.' }
