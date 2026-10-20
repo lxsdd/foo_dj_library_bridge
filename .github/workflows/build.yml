@@ -36,6 +36,23 @@ jobs:
             if ($parseErrors.Count -gt 0) { throw "Invalid PowerShell syntax in $name" }
             Write-Host "POWERSHELL_PARSE_$name=PASS"
           }
+      - name: Independently decode the source-generated embedded FLAC fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture_dir="$(mktemp -d)"
+          trap 'rm -rf "$fixture_dir"' EXIT
+          python3 scripts/generate-embedded-flac-fixture.py "$fixture_dir/Synthetic Embedded.flac"
+          ffmpeg -nostdin -v error -xerror -i "$fixture_dir/Synthetic Embedded.flac" -f null -
+          ffprobe -v error -show_entries format_tags=CUESHEET -of json "$fixture_dir/Synthetic Embedded.flac" > "$fixture_dir/tags.json"
+          python3 - "$fixture_dir/tags.json" <<'PY'
+          import json,sys
+          data=json.load(open(sys.argv[1],encoding='utf-8'))
+          cue=data['format']['tags']['CUESHEET']
+          assert 'TRACK 01 AUDIO' in cue and 'TRACK 02 AUDIO' in cue
+          assert 'Embedded Alpha' in cue and 'Embedded Beta' in cue
+          print('FLAC_EMBEDDED_INDEPENDENT_DECODE_AND_VORBIS_CUE=PASS')
+          PY
       - name: Static safety/contract audit
         run: python3 scripts/static_audit.py
       - name: Build pure contract tests with GCC
