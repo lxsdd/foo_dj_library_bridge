@@ -45,7 +45,7 @@ while ([DateTime]::UtcNow -lt $deadline) {
             $state = @{}
             foreach ($line in ($before -split "\r?\n")) {
                 if ($line.Length -eq 0) { continue }
-                $kv = $line -split "\`t",2
+                $kv = $line -split "`t",2
                 if ($kv.Count -ne 2 -or $state.ContainsKey($kv[0])) {
                     throw 'Malformed or duplicated Bridge state key.'
                 }
@@ -73,7 +73,7 @@ while ([DateTime]::UtcNow -lt $deadline) {
                         try {
                             $header = $reader.ReadLine()
                             if ($null -eq $header) { throw 'Empty gzip Bridge payload' }
-                            $actual = @($header -split "\`t")
+                            $actual = @($header -split "`t")
                             if ($actual.Count -ne $headerFields.Count) { throw "Wrong v3 column count: $($actual.Count)" }
                             for ($i=0; $i -lt $headerFields.Count; ++$i) {
                                 if ($actual[$i] -cne $headerFields[$i]) { throw "Wrong v3 header at column $i" }
