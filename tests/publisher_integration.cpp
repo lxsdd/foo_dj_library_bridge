@@ -201,6 +201,22 @@ int wmain(int argc, wchar_t** argv) {
             capture(live, stages / "g10-recovery", 10, 1);
             require(!fs::exists(live / "bridge-error.txt"),
                 "Successful commit did not remove stale error state");
+
+            // Scale evidence for a realistically sized foobar profile.
+            // Paths and tags are invented and never resolved on disk.
+            std::vector<djbridge::Record> largeSnapshot;
+            largeSnapshot.reserve(54129);
+            for (unsigned id = 0; id < 54129; ++id) {
+                largeSnapshot.push_back(make_record(
+                    id + 10000, "Synthetic library track " + std::to_string(id)));
+            }
+            const auto scaleStart = std::chrono::steady_clock::now();
+            recovered.request(std::move(largeSnapshot));
+            capture(live, stages / "g11-large", 11, 54129);
+            const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - scaleStart).count();
+            std::cout << "PUBLISHER_NATIVE_SCALE_54129=PASS elapsed_ms="
+                      << elapsed << std::endl;
             recovered.shutdown();
         }
         std::cout << "PUBLISHER_FAILURE_RECOVERY=PASS" << std::endl;
