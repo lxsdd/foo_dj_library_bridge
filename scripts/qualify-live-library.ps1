@@ -206,7 +206,7 @@ $dir=Join-Path $profile 'foo_dj_library_bridge'
 $stateFile=Join-Path $dir 'bridge-state.tsv'
 $gzipFile=Join-Path $dir 'digital-items.tsv.gz'
 function Wait-BridgeSnapshot([int]$ExpectedCount,[long]$PreviousGeneration,
- [string[]]$TrackNames,[string]$Phase) {
+ [string[]]$TrackNames,[string]$Phase,[double]$ExpectedDurationSeconds=-1) {
  $deadline=[DateTime]::UtcNow.AddSeconds(45)
  $observed=''
  while ([DateTime]::UtcNow -lt $deadline) {
@@ -236,12 +236,24 @@ function Wait-BridgeSnapshot([int]$ExpectedCount,[long]$PreviousGeneration,
      throw "Invalid actual foobar Media Library record count or header: $Phase"
     }
     $names=[System.Collections.Generic.List[string]]::new()
+    $durationMatched=($ExpectedDurationSeconds -lt 0)
     foreach ($row in $rows) {
      $cells=@($row.Split([char]9))
      if ($cells.Count -ne 26 -or $cells[1] -ne '0') { throw "Invalid live foobar row at $Phase" }
-     $names.Add([IO.Path]::GetFileName($cells[0]))
+     $trackName=[IO.Path]::GetFileName($cells[0])
+     $names.Add($trackName)
+     if ($ExpectedDurationSeconds -ge 0 -and $trackName -ceq 'Synthetic 01.wav') {
+      $observedSeconds=[double]0
+      if (-not [double]::TryParse(
+          $cells[19],[Globalization.NumberStyles]::Float,
+          [Globalization.CultureInfo]::InvariantCulture,[ref]$observedSeconds)) {
+       throw "foobar emitted an invalid synthetic WAV duration in $Phase"
+      }
+      $durationMatched=([math]::Abs($observedSeconds-$ExpectedDurationSeconds) -lt 0.02)
+     }
     }
-    if (@(Compare-Object -ReferenceObject $TrackNames -DifferenceObject $names.ToArray()).Count -eq 0) {
+    if (@(Compare-Object -ReferenceObject $TrackNames -DifferenceObject $names.ToArray()).Count -eq 0 -and
+        $durationMatched) {
      Write-Host "BRIDGE_REAL_LIBRARY_$($Phase)_$Architecture=PASS count=$ExpectedCount generation=$($state.generation)"
      return [long]$state.generation
     }
@@ -254,6 +266,12 @@ function Wait-BridgeSnapshot([int]$ExpectedCount,[long]$PreviousGeneration,
 $g1=Wait-BridgeSnapshot -ExpectedCount 1 -PreviousGeneration 1 -TrackNames @('Synthetic 01.wav') -Phase INITIAL
 New-SilentWave -Path $second -Seconds 1
 $g2=Wait-BridgeSnapshot -ExpectedCount 2 -PreviousGeneration $g1 -TrackNames @('Synthetic 01.wav','Synthetic 02.wav') -Phase ADDED
+# Exercise the actual foobar file-monitor and metadata/technical-info refresh.
+# The same isolated one-second WAV is rewritten as a valid two-second WAV.
+# No real user file, tag or database is touched.
+Start-Sleep -Milliseconds 1100
+New-SilentWave -Path $first -Seconds 2
+$g3=Wait-BridgeSnapshot -ExpectedCount 2 -PreviousGeneration $g2 -TrackNames @('Synthetic 01.wav','Synthetic 02.wav') -Phase MODIFIED -ExpectedDurationSeconds 2
 Remove-Item -LiteralPath $second -Force -ErrorAction Stop
-$g3=Wait-BridgeSnapshot -ExpectedCount 1 -PreviousGeneration $g2 -TrackNames @('Synthetic 01.wav') -Phase REMOVED
-Write-Host "BRIDGE_REAL_LIBRARY_ADD_REMOVE_$Architecture=PASS"
+$g4=Wait-BridgeSnapshot -ExpectedCount 1 -PreviousGeneration $g3 -TrackNames @('Synthetic 01.wav') -Phase REMOVED -ExpectedDurationSeconds 2
+Write-Host "BRIDGE_REAL_LIBRARY_ADD_MODIFY_REMOVE_$Architecture=PASS"
