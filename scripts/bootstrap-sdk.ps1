@@ -37,8 +37,7 @@ if (Test-Path -LiteralPath $SdkRoot) {
             throw "Pinned SDK cache is incomplete: $required"
         }
     }
-    if (-not (Select-String -LiteralPath (Join-Path $SdkRoot 'sdk-readme.html') -SimpleMatch
-        -Pattern "foobar2000 SDK, version $SdkVersion" -Quiet)) {
+    if (-not (Get-Content -LiteralPath (Join-Path $SdkRoot 'sdk-readme.html') -Raw).Contains("foobar2000 SDK, version $SdkVersion")) {
         throw 'SDK cache readme version mismatch.'
     }
     Write-Host "FOOBAR_SDK_GIT_SOURCE_REUSED=PASS version=$SdkVersion"
@@ -77,8 +76,7 @@ foreach ($entry in @(
         throw "Pinned template SDK is missing $entry"
     }
 }
-if (-not (Select-String -LiteralPath (Join-Path $vendor 'sdk-readme.html') -SimpleMatch
-    -Pattern "foobar2000 SDK, version $SdkVersion" -Quiet)) {
+if (-not (Get-Content -LiteralPath (Join-Path $vendor 'sdk-readme.html') -Raw).Contains("foobar2000 SDK, version $SdkVersion")) {
     throw 'Pinned SDK vendor readme version mismatch.'
 }
 $notice = Get-Content -LiteralPath (Join-Path $vendor 'sdk-license.txt') -Raw
