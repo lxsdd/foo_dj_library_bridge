@@ -7,15 +7,64 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if ($env:OS -ne 'Windows_NT') { throw 'Windows 10/11 required.' }
-$msbuild = Get-Command msbuild.exe -ErrorAction SilentlyContinue
-$sevenZip = Get-Command 7z.exe -ErrorAction SilentlyContinue
-if (-not $sevenZip) {
-    $p7z = Join-Path $env:ProgramFiles '7-Zip\7z.exe'
-    if (Test-Path -LiteralPath $p7z -PathType Leaf) { $sevenZip = Get-Item $p7z }
+# Check the installed toolchain rather than requiring Developer PowerShell.
+# vswhere searches both VS2022 (17.x) and VS2026 (18.x) including BuildTools.
+$msbuildCommand = Get-Command msbuild.exe -ErrorAction SilentlyContinue
+$msbuildPath = if ($msbuildCommand) { $msbuildCommand.Source } else { '' }
+$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+$vsRoots = @()
+if (Test-Path -LiteralPath $vswhere -PathType Leaf) {
+    $vsRoots = @(& $vswhere -all -products '*' -requires Microsoft.Component.MSBuild -property installationPath |
+        Where-Object { $_ -and (Test-Path -LiteralPath $_) })
+    if (-not $msbuildPath) {
+        $choices = @(& $vswhere -all -products '*' -requires Microsoft.Component.MSBuild -find 'MSBuild\Current\Bin\MSBuild.exe' |
+            Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) })
+        if ($choices.Count -gt 0) { $msbuildPath = $choices[0] }
+    }
 }
-if (-not $msbuild -or -not $sevenZip) {
-    throw 'Preflight: VS2022 Developer PowerShell with MSBuild and 7-Zip required. No installation attempted.'
+$sevenZipCommand = Get-Command 7z.exe -ErrorAction SilentlyContinue
+$sevenZipPath = if ($sevenZipCommand) { $sevenZipCommand.Source } else { '' }
+if (-not $sevenZipPath) {
+    foreach ($candidate in @(
+        (Join-Path $env:ProgramFiles '7-Zip\7z.exe'),
+        (Join-Path ${env:ProgramFiles(x86)} '7-Zip\7z.exe'))) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            $sevenZipPath = $candidate
+            break
+        }
+    }
 }
+# The solution specifies /p:PlatformToolset=v143, not just any MSBuild.
+# v143 MSVC versions use the 14.3x and 14.4x toolset directories.
+$hasV143 = $false
+foreach ($root in $vsRoots) {
+    $toolDir = Join-Path $root 'VC\Tools\MSVC'
+    if (-not (Test-Path -LiteralPath $toolDir -PathType Container)) { continue }
+    $toolsets = @(Get-ChildItem -LiteralPath $toolDir -Directory -ErrorAction SilentlyContinue)
+    foreach ($tool in $toolsets) {
+        if ($tool.Name -match '^14\.(3[0-9]|4[0-9])\.' -and
+            (Test-Path -LiteralPath (Join-Path $tool.FullName 'bin\Hostx64\x64\cl.exe') -PathType Leaf)) {
+            $hasV143 = $true
+            break
+        }
+    }
+    if ($hasV143) { break }
+}
+Write-Host ('BRIDGE_PREFLIGHT_MSBUILD=' + $(if ($msbuildPath) { 'FOUND' } else { 'MISSING' }))
+Write-Host ('BRIDGE_PREFLIGHT_V143=' + $(if ($hasV143) { 'FOUND' } else { 'MISSING' }))
+Write-Host ('BRIDGE_PREFLIGHT_7ZIP=' + $(if ($sevenZipPath) { 'FOUND' } else { 'MISSING' }))
+$missing = @()
+if (-not $msbuildPath) { $missing += 'MSBuild (VS2022/VS2026)' }
+if (-not $hasV143) { $missing += 'MSVC C++ v143 x86/x64' }
+if (-not $sevenZipPath) { $missing += '7-Zip' }
+if ($missing.Count -gt 0) {
+    throw ('Preflight missing: ' + ($missing -join ', ') +
+        '. No installation or download attempted. GitHub CI builds remain available.')
+}
+# Nested build.ps1 resolves msbuild.exe using Get-Command; only add to this
+# process and any child processes. Never write a persistent PATH setting.
+$env:PATH = (Split-Path -Parent $msbuildPath) + [IO.Path]::PathSeparator +
+    (Split-Path -Parent $sevenZipPath) + [IO.Path]::PathSeparator + $env:PATH
 # Runs standalone from any directory, including a single downloaded script
 # under $env:TEMP. Source project files are checked after exact-SHA download.
 if ($PreflightOnly) {
