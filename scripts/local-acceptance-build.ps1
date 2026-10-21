@@ -43,7 +43,8 @@ foreach ($root in $vsRoots) {
     $toolsets = @(Get-ChildItem -LiteralPath $toolDir -Directory -ErrorAction SilentlyContinue)
     foreach ($tool in $toolsets) {
         if ($tool.Name -match '^14\.(3[0-9]|4[0-9])\.' -and
-            (Test-Path -LiteralPath (Join-Path $tool.FullName 'bin\Hostx64\x64\cl.exe') -PathType Leaf)) {
+            (Test-Path -LiteralPath (Join-Path $tool.FullName 'bin\Hostx64\x64\cl.exe') -PathType Leaf) -and
+            (Test-Path -LiteralPath (Join-Path $tool.FullName 'bin\Hostx64\x86\cl.exe') -PathType Leaf)) {
             $hasV143 = $true
             break
         }
