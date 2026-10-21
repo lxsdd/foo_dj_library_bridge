@@ -70,8 +70,13 @@ jobs:
       - name: Bootstrap exact foobar2000 SDK and build with VS2022 toolset
         shell: pwsh
         run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset v143
+      - name: HARD GATE - load current SDK Bridge DLL in real foobar2000 ${{ matrix.platform }} via own GitHub original installer
+        uses: lxsdd/dev-infrastructure-public/.github/actions/foobar-host-smoke@35369054c56f4c6ccb2f802944e9675852fd35ec
+        with:
+          architecture: ${{ matrix.platform }}
+          component-dll: out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll
       - name: Upload DLL
-        if: github.event_name != 'pull_request'
+        if: false # Unapproved public component DLL distribution forbidden
         uses: actions/upload-artifact@v7
         with:
           name: foo_dj_library_bridge-${{ matrix.platform }}
@@ -81,7 +86,7 @@ jobs:
 
   package-component:
     name: Package verified foobar2000 component
-    if: github.event_name != 'pull_request'
+    if: false # No public .fb2k-component while Draft license and owner gates remain open
     needs:
       - contract-tests
       - windows-build
