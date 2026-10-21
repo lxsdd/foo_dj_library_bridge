@@ -166,6 +166,13 @@ while ([DateTime]::UtcNow -lt $deadline) {
 }
 if ($null -ne $still) { throw 'Folder chooser did not accept synthetic path.' }
 Write-Host "BRIDGE_SYNTHETIC_FOLDER_SELECTED_$Architecture=PASS"
+# The official Shell picker runs in fooHelper.exe and completes its selection
+# asynchronously on foobar's UI thread. Do not immediately close Preferences
+# in the same UI scheduling slice as the native Select click: under runner
+# contention the delayed folder-add notification can otherwise be discarded.
+# This is NOT a substitute for the later real Media Library callback proof.
+Start-Sleep -Milliseconds 1000
+Write-Host "BRIDGE_NATIVE_FOLDER_SELECTION_SETTLED_$Architecture=PASS waiting_for_real_callback"
 $folderListCond=[System.Windows.Automation.PropertyCondition]::new(
  [System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1233')
 $folderList=$Preferences.FindFirst(
