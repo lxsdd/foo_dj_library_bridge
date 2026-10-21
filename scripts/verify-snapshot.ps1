@@ -28,7 +28,12 @@ if (-not (Test-Path $statePath)) { throw "Missing $statePath" }
 if (-not (Test-Path $itemsPath)) { throw "Missing $itemsPath" }
 
 $state = @{}
-Get-Content -LiteralPath $statePath -Encoding UTF8 | ForEach-Object {
+# Parse and later compare the SAME initial bytes. Two separate state reads
+# could otherwise pair a parsed old generation with a later baseline.
+$stateBefore = [System.IO.File]::ReadAllBytes($statePath)
+$stateText = [System.Text.UTF8Encoding]::new($false, $true).GetString($stateBefore)
+$stateText = $stateText.TrimStart([char]0xFEFF)
+$stateText -split '\r\n|\n|\r' | ForEach-Object {
     if (-not $_) { return }
     $parts = $_ -split "`t", 2
     if ($parts.Count -ne 2) { throw "Malformed bridge-state line: $_" }
@@ -52,7 +57,6 @@ if (-not [int]::TryParse($state.item_count, [ref]$declaredCount) -or $declaredCo
 if (-not [long]::TryParse($state.generation, [ref]$generation) -or $generation -le 0) {
     throw "Invalid generation: $($state.generation)"
 }
-$stateBefore = [System.IO.File]::ReadAllBytes($statePath)
 # Mirror the DJ Library consumer's path+subsong identity and numeric fail-closed gates.
 $identities = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 $fs = [System.IO.File]::Open($itemsPath, 'Open', 'Read', 'ReadWrite')
