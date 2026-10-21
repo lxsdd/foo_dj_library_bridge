@@ -88,12 +88,22 @@ require("MSVC C++ $selectedToolset x86/x64" in local_build,
         "per-architecture compiler presence requirement removed")
 require("-PlatformToolset $selectedToolset" in local_build,
         "private dual-architecture compile does not enforce selected toolset")
-require("toolset: [v143, v145]" in workflow_source,
-        "Win32/x64 host CI must independently qualify both reviewed toolsets")
-require("-Toolset '${{ matrix.toolset }}'" in workflow_source and
-        "-PlatformToolset '${{ matrix.toolset }}'" in workflow_source and
-        "/p:PlatformToolset='${{ matrix.toolset }}'" in workflow_source,
-        "host builds, publisher and exact SHA acceptance must use same selected toolset")
+require("  windows-build:\n" in workflow_source and
+        "  windows-build-v145:\n" in workflow_source,
+        "protected v143 windows-build and independent v145 real host jobs required")
+host_v143 = workflow_source.split("  windows-build:\n", 1)[1].split("  windows-build-v145:\n", 1)[0]
+host_v145 = workflow_source.split("  windows-build-v145:\n", 1)[1].split("  package-component:\n", 1)[0]
+require("    name:" not in host_v143.split("    steps:\n", 1)[0],
+        "protected v143 host job naming must remain unchanged")
+for family, host in (("v143", host_v143), ("v145", host_v145)):
+    require("platform: [Win32, x64]" in host and
+            f"-Toolset '{family}'" in host and
+            f"-PlatformToolset '{family}'" in host and
+            f"/p:PlatformToolset='{family}'" in host and
+            f"-SourceSha $sourceSha -OutputDirectory $root -Toolset '{family}'" in host,
+            f"real host and private SHA build must both enforce {family} on Win32/x64")
+require("uses: actions/upload-artifact@" not in host_v145,
+        "new v145 qualification must never publish public binary artifacts")
 require('GENERIC_WRITE' in publisher and 'FlushFileBuffers' in publisher, "durable temp-file flush must use a writable handle")
 require('MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH' in publisher, "atomic write-through replace missing")
 require('complete ? 1 : 0' in publisher, "state complete marker missing")
