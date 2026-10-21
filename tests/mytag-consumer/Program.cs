@@ -104,7 +104,7 @@ internal static class MyTagBridgeInterop
                 {
                     Must(snapshot.Tracks.Count == 2 &&
                          snapshot.Tracks[0].Path.Equals(snapshot.Tracks[1].Path, StringComparison.OrdinalIgnoreCase) &&
-                         snapshot.Tracks.Select(x => x.Subsong).OrderBy(x => x).SequenceEqual(new[] {0, 1}) &&
+                         snapshot.Tracks.Select(x => x.Subsong).OrderBy(x => x).SequenceEqual(new uint[] {0u, 1u}) &&
                          snapshot.Tracks.Single(x => x.Subsong == 0).GetFieldValues("TITLE").SequenceEqual(new[] {"CUE subsong A"}) &&
                          snapshot.Tracks.Single(x => x.Subsong == 1).GetFieldValues("TITLE").SequenceEqual(new[] {"CUE subsong B"}),
                          "Original MyTagSync reader lost CUE subsong identities or lossless title vectors: " + name);
