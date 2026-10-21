@@ -110,6 +110,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: microsoft/setup-msbuild@v2
+      - name: Verify v2/v3 on native Windows PowerShell 5.1
+        shell: powershell
+        run: ./tests/test-verifier-windows.ps1
+      - name: Verify v2/v3 on PowerShell 7
+        shell: pwsh
+        run: ./tests/test-verifier-windows.ps1
       - name: Bootstrap exact foobar2000 SDK and build with VS2022 toolset
         shell: pwsh
         run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset v143
