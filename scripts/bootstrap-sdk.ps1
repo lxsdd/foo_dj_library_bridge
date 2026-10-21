@@ -9,18 +9,39 @@ if (Test-Path (Join-Path $SdkRoot 'foobar2000\SDK\foobar2000.h')) {
 }
 New-Item -ItemType Directory -Force -Path $External | Out-Null
 $Archive = Join-Path $External "SDK-$SdkVersion.7z"
-# Official vendor transport occasionally refuses hosted runner connections.
-# Retry only the same official URL, without accepting a mirror or changing SDK.
+# Official vendor transport occasionally refuses hosted Windows connections.
+# Use the same vendor URL with bounded retries, then an alternate HTTPS
+# client (curl.exe) on that SAME origin. Never accept an unpinned mirror.
+$SdkUrl = "https://www.foobar2000.org/downloads/SDK-$SdkVersion.7z"
+$downloaded = $false
 for ($attempt = 1; $attempt -le 3; $attempt++) {
     try {
-        Invoke-WebRequest -UseBasicParsing -MaximumRedirection 5 -TimeoutSec 90 -ErrorAction Stop -Uri "https://www.foobar2000.org/downloads/SDK-$SdkVersion.7z" -OutFile $Archive
+        Invoke-WebRequest -UseBasicParsing -MaximumRedirection 5 -TimeoutSec 90 -ErrorAction Stop -Uri $SdkUrl -OutFile $Archive
+        $downloaded = $true
         break
     } catch {
         Remove-Item -LiteralPath $Archive -Force -ErrorAction SilentlyContinue
-        if ($attempt -eq 3) { throw }
-        Write-Warning "Official SDK connection failed (attempt $attempt/3). Retrying same host."
-        Start-Sleep -Seconds (2 * $attempt)
+        if ($attempt -lt 3) {
+            Write-Warning "Official SDK PowerShell connection failed ($attempt/3); retrying same host."
+            Start-Sleep -Seconds (2 * $attempt)
+        }
     }
+}
+if (-not $downloaded) {
+    $curl = Get-Command 'curl.exe' -ErrorAction SilentlyContinue
+    if (-not $curl) { throw 'Official SDK server unreachable with PowerShell, and curl.exe is not installed.' }
+    Write-Host 'Trying same official SDK HTTPS URL with curl.exe; no mirror or unpinned version.'
+    & $curl.Source --fail --silent --show-error --location --retry 2 --retry-all-errors --connect-timeout 20 --max-time 120 --output $Archive $SdkUrl
+    if ($LASTEXITCODE -ne 0) { throw "Official SDK download failed using both HTTP clients (curl exit $LASTEXITCODE)." }
+}
+# Same immutable vendor-archive evidence as the separately qualified safety PR.
+# Transport fallback is not permission to change the SDK bytes or version.
+$ExpectedSize = 793742
+$ExpectedSha256 = '24fa95ed66b42624f593fd4b94c5efb08ae81dfebb92b79fe69c8cd170961e48'
+$ActualSize = (Get-Item -LiteralPath $Archive).Length
+$ActualHash = (Get-FileHash -LiteralPath $Archive -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($ActualSize -ne $ExpectedSize -or $ActualHash -ne $ExpectedSha256) {
+    throw "Official SDK integrity mismatch: $ActualSize bytes / $ActualHash."
 }
 
 $SevenZip = $null
