@@ -11,8 +11,10 @@ GUID-basierten Temp-Verzeichnis, nicht in einem dauerhaften Git-Repository.
 
 ## Voraussetzungen
 
-- Windows 10/11, Visual Studio 2022 **C++ Build Tools** (v143),
-  `msbuild.exe` über die **Developer PowerShell for VS 2022**
+- Windows 10/11, installierte Visual Studio 2022/2026 Build Tools mit
+  **MSVC v143 für Win32 und x64** sowie MSBuild. Der Helfer findet diese
+  über `vswhere`; eine Developer PowerShell ist nicht zwingend erforderlich.
+  Fehlende Werkzeuge werden nur angezeigt, **nicht installiert**.
 - 7-Zip/`7z.exe`, ausreichend freier temporärer Speicher, HTTPS-Zugriff
   auf GitHub und foobar2000.org
 - Eine **vorher qualifizierte exakte 40-stellige lowercase Git-Commit-SHA**
