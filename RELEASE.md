@@ -1,5 +1,20 @@
 # foo_dj_library_bridge release procedure
 
+> **SUSPENDED — DO NOT EXECUTE, source-only Draft (2026-10-21).**
+> Historical `main` candidate and manual release workflows remain
+> publish-capable and are NOT yet covered by unmerged Draft guards.
+> **Do not dispatch candidate/package/release workflows, create tags
+> or distribute DLLs.** The owner's standing instruction **does allow
+> independently qualified, fail-closed source-only PR merges** under
+> [the autonomous safety policy](docs/AUTONOMOUS-PROMOTION-POLICY.md).
+> Green synthetic host CI alone does not authorize public binary
+> releases. The owner-approved [MIT + Commons Clause v1.0](LICENSE)
+> applies only to Bridge-owned materials. Release still requires legal
+> provenance, third-party notices, actual private DJ-device read-only
+> acceptance and independently verified exact-SHA package safeguards.
+> The procedures below are **historical design notes only** until
+> formally requalified and separately approved.
+
 GitHub is the canonical source and build authority. A release is promoted from a qualified candidate; it is never rebuilt.
 
 ## Version source

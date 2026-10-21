@@ -13,7 +13,7 @@ This follows foobar2000's profile/portable architecture. Standard and portable f
 ## Current contract
 
 - foobar2000: v2.0+
-- SDK: **2026-09-17**
+- SDK: **2026-10-01** (immutable pinned owner-controlled Git source)
 - C++: **C++20**
 - Windows: Win32 + x64
 - Identity: `(path, subsong)`
@@ -55,7 +55,7 @@ Open a Visual Studio Developer PowerShell and run:
 ./scripts/build.ps1 -Platform Win32 -Configuration Release
 ```
 
-The script downloads the exact official SDK archive from foobar2000.org into the ignored `external/` directory. GitHub Actions performs Win32/x64 Windows builds and independent GCC + Clang contract tests on Linux.
+The current Draft `scripts/bootstrap-sdk.ps1` stages SDK 2026-10-01 from an immutable owner-controlled Git tree, not a fresh official SDK archive download. Git-tree integrity is verified; this is not a claim of original archive byte verification. GitHub Actions tests real foobar2000 v2.26.1 isolated hosts on Win32/x64, original DJ Library/MyTagSync consumers, CUE/indexing and restart, strict Windows v2/v3 verification, and SHA-256 no-unexpected-media-write checks using only synthetic files.
 
 ## Runtime verification
 
@@ -73,14 +73,37 @@ For another/portable profile:
 
 ## Status
 
-`0.1.0-rc4`: schema-v3 development candidate for the single-snapshot lossless metadata-vector projection. This revision must not be promoted to `main`/release until downstream compatibility has been qualified against DJ Library and Rekordbox MyTag Sync.
+`0.1.0-rc4`: schema-v3 development candidate. The integrated source-only Draft PR #17 has successful exact-SHA synthetic foobar2000 host, DJ Library/MyTagSync original-reader, CUE, crash recovery, verifier and audio-integrity CI. This does not equal acceptance on the private DJ collection, nor an owner release authorization.
 
 RC2 remains the last real-Windows-qualified profile-local/multi-instance baseline: a portable 1,345-item profile and the standard 54,129-item profile coexist independently, and DJ Library can switch between them without cross-overwrite.
 
-## GitHub candidate and release flow
+## License and release freeze
 
-GitHub is the canonical build authority. The workflow builds and tests both Win32 and x64, verifies the PE machine architecture, and packages one combined foobar2000 component with the Win32 DLL in the archive root and the x64 DLL under `x64/`.
+The Bridge-owned original project code is licensed under the combined
+[MIT + Commons Clause License Condition v1.0](LICENSE), with
+`Copyright (c) 2026 lxsdd` and `Licensor: lxsdd`, as explicitly
+approved by the project owner. This is **source-available, not OSI
+open source**. Free private and professional DJ use, including paid
+performances, is allowed; selling the Bridge itself or substantially
+equivalent paid Bridge-based offerings is restricted.
+Read the exact conditions, especially regarding substantially Bridge-based
+paid hosting/consulting and materially different value-added offerings.
+The [license decision history](docs/PROPOSED-LICENSING-MIT-COMMONS-CLAUSE.md)
+and [third-party inventory](docs/THIRD-PARTY-NOTICES-INVENTORY.md)
+explain the scope. The combined license does not relicense SDK, pfc,
+libPPUI, foobar2000 player, or other separately licensed materials.
+Owner rights to relicense third-party code fragments and the correct
+attribution/notice contents still require independent release review.
 
-A manually dispatched candidate run produces an immutable `foo_dj_library_bridge-component-<commit>` Actions artifact. `VERSION` is the canonical package/release version source.
+**Source-only PR integration may proceed autonomously under the owner's
+standing project authorization**, provided exact-HEAD CI, licensing,
+branch protection, third-party notice and fail-closed publishing gates
+are satisfied. See the [autonomous promotion safety policy](docs/AUTONOMOUS-PROMOTION-POLICY.md).
+Historical `main` candidate and manual release workflows must **not**
+be dispatched until protected by the source-only gate.
 
-Final release promotion accepts only a successful manually dispatched candidate from `main`, verifies the manifest, commit binding, package version, SHA-256 and component layout, then creates tag `v<VERSION>` and publishes those exact bytes without rebuilding.
+The historical steps in [RELEASE.md](RELEASE.md) remain suspended for
+DLL packages, tags, public releases and private-device installation.
+Publication requires actual private DJ-device read-only acceptance,
+complete notices, reviewed exact-SHA promotion and all other release
+gates; the standing authorization does not waive any requirement.

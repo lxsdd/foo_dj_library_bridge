@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import hashlib
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -16,6 +17,30 @@ build = (root / "scripts" / "build.ps1").read_text(encoding="utf-8")
 errors = []
 def require(ok, message):
     if not ok: errors.append(message)
+
+# Licensing is an owner-approved restricted combined grant. A stale or
+# MIT-only LICENSE would silently restore resale rights, so treat changes
+# as a legal review gate separate from the build/distribution hold.
+license_bytes = (root / "LICENSE").read_bytes()
+license_text = license_bytes.decode("utf-8", errors="strict")
+normalized_license = " ".join(license_text.split())
+license_blob = hashlib.sha1(
+    f"blob {len(license_bytes)}\0".encode("ascii") + license_bytes
+).hexdigest()
+require(
+    license_blob == "b9998241259c5cc30a512ae25257409c48319f9a",
+    "owner-approved MIT plus Commons Clause LICENSE changed: re-review full legal grant",
+)
+for required in (
+    "Copyright (c) 2026 lxsdd",
+    '"Commons Clause" License Condition v1.0',
+    "the right to Sell the Software",
+    "Software: foo_dj_library_bridge",
+    "License: MIT",
+    "Licensor: lxsdd",
+    "Independently licensed third-party",
+):
+    require(required in normalized_license, f"mandatory restricted-license term absent: {required}")
 
 expected_header = "path\tsubsong\tartist\tartists\ttitle\toriginal_title\tremixed_by\talbum\talbum_artist\ttrack_number\ttotal_tracks\tdisc_number\ttotal_discs\tdate\tgenre\tstyle\tbpm\tlabel\tcatalog_number\tduration_seconds\tisrc\tcodec\tbitrate\ttag_fingerprint\textra_metadata_json\tmetadata_vectors_json"
 require(expected_header.replace("\t", "\\t") in contract, "schema-v3 header changed")
@@ -44,7 +69,13 @@ require('FOOBAR2000_TARGET_VERSION=81' in project, "foobar target version 81 mis
 require('<LanguageStandard>stdcpp20</LanguageStandard>' in project, "C++20 missing")
 require('MultiThreadedDLL' in project and 'MultiThreadedDebugDLL' in project, "component runtime library is not aligned with official component sample")
 require('foobar2000_sdk_helpers.vcxproj' not in project, "unused helpers project reference should not be linked")
-require("$SdkVersion = '2026-09-17'" in bootstrap, "SDK pin changed")
+require("$SdkVersion = '2026-10-01'" in bootstrap, "SDK must use currently approved 2026-10-01")
+require("$TemplateCommit = '31a35947a7527826c2199491692802e3ce3d8bd7'" in bootstrap, "Immutable SDK source commit missing")
+require("$SdkTree = '2ba8caeb73f72633ad7f60ee5f72ed8074a0eb17'" in bootstrap, "Immutable SDK source tree missing")
+require("$ExpectedArchiveHash = 'd4c55077336fae81bf8df0259b5b2748fa45ea84132c656ead93eb123cbcdc26'" in bootstrap,
+        "SDK upstream archive evidence pin missing")
+require("Invoke-WebRequest" not in bootstrap and "foobar2000_component_template.git" in bootstrap,
+        "Bridge SDK bootstrap must use the pinned owner-controlled Git source, not vendor archive HTTP")
 require("[string]$PlatformToolset = 'v143'" in build, "VS2022 v143 CI toolset pin missing")
 require('GENERIC_WRITE' in publisher and 'FlushFileBuffers' in publisher, "durable temp-file flush must use a writable handle")
 require('MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH' in publisher, "atomic write-through replace missing")
@@ -75,6 +106,7 @@ if errors:
     for e in errors: print("-", e)
     sys.exit(1)
 print("STATIC AUDIT PASS")
+print("- owner-approved lxsdd MIT + Commons Clause v1.0 license exact Git-blob allowlist")
 print("- read-only foobar SDK adapter")
 print("- profile-local per-instance storage via core_api::get_profile_path()")
 print("- source metadata in schema-v3 state")
