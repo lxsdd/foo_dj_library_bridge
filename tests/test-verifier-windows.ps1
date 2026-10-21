@@ -83,6 +83,35 @@ try {
     [System.IO.File]::WriteAllBytes($bomPath, $withBom)
     & $verifier -BridgeDirectory $bomDir
     Write-Host "PASS: PowerShell $($PSVersionTable.PSVersion) accepts UTF-8 BOM state"
+    # Validate that state keys remain authoritative even when the payload is
+    # structurally correct: no partial commit or unsupported future schema.
+    foreach ($invalidStateCase in @(
+        @{ Name = 'state-incomplete'; Old = 'complete' + $tab + '1'; New = 'complete' + $tab + '0' },
+        @{ Name = 'state-future-schema'; Old = 'schema_version' + $tab + '3'; New = 'schema_version' + $tab + '99' },
+        @{ Name = 'state-wrong-count'; Old = 'item_count' + $tab + '1'; New = 'item_count' + $tab + '2' },
+        @{ Name = 'state-zero-generation'; Old = 'generation' + $tab + '7'; New = 'generation' + $tab + '0' }
+    )) {
+        $directory = New-SyntheticBridge -Name $invalidStateCase.Name -Schema 3
+        $statePath = Join-Path $directory 'bridge-state.tsv'
+        $stateContents = [System.IO.File]::ReadAllText($statePath, $utf8)
+        $changed = $stateContents.Replace($invalidStateCase.Old, $invalidStateCase.New)
+        if ($changed -eq $stateContents) { throw "Failed to mutate synthetic state $($invalidStateCase.Name)" }
+        [System.IO.File]::WriteAllText($statePath, $changed, $utf8)
+        $rejected = $false
+        try { & $verifier -BridgeDirectory $directory } catch { $rejected = $true }
+        if (-not $rejected) { throw "Unsafe state was accepted: $($invalidStateCase.Name)" }
+        Write-Host "PASS: PowerShell $($PSVersionTable.PSVersion) rejected $($invalidStateCase.Name)"
+    }
+    # A damaged compressed stream must not be counted as complete.
+    $corrupt = New-SyntheticBridge -Name 'bad-gzip-header' -Schema 3
+    $gzPath = Join-Path $corrupt 'digital-items.tsv.gz'
+    $gzipBytes = [System.IO.File]::ReadAllBytes($gzPath)
+    $gzipBytes[0] = 0
+    [System.IO.File]::WriteAllBytes($gzPath, $gzipBytes)
+    $rejected = $false
+    try { & $verifier -BridgeDirectory $corrupt } catch { $rejected = $true }
+    if (-not $rejected) { throw 'Verifier accepted corrupted gzip header' }
+    Write-Host "PASS: PowerShell $($PSVersionTable.PSVersion) rejects corrupt gzip"
     foreach ($testcase in @(
         @{ Name = 'bad-subsong'; Subsong = '-1'; Vectors = '[]' },
         @{ Name = 'bad-vectors'; Subsong = '0'; Vectors = '{}' },
