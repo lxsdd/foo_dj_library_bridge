@@ -69,9 +69,11 @@ This is text identity, **not** a whole-SDK-tree equality claim.
 4. Final private end-device safety and real collection acceptance plus
    exact-Git-HEAD CI, reviewed build manifests, and owner-approved artifact
    SHA. None is implied by isolated synthetic-host CI results.
-5. Owner gives independent, explicit approval for **each** merge, package,
-   release, tag or distribution operation. All existing Draft source-only
-   workflow gates remain disabled until such approval.
+5. Owner has given **standing permission for qualified source-only
+   merges**, not for bypassing safety checks or actual DJ-device tests.
+   Package/release/tag/distribution remains gated by
+   [the autonomous policy](AUTONOMOUS-PROMOTION-POLICY.md)
+   and must not proceed until all prerequisites are independently met.
 
 **Primary references:** vendor license files at the immutable Git tree,
 <https://www.foobar2000.org/?page=License>, and
