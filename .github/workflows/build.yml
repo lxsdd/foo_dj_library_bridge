@@ -71,6 +71,37 @@ jobs:
           print('PASS: independent gzip decode, exact 26-column schema-v3 contract, multi-block boundary')
           PY
 
+  windows-publisher-no-sdk:
+    name: Native publisher without foobar SDK (${{ matrix.platform }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [Win32, x64]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, immutable
+      - uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2, immutable
+      - name: Compile actual native Publisher and replay atomic/failure/restart/54129-record tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msbuild = (Get-Command msbuild.exe -ErrorAction Stop).Source
+          & $msbuild 'tests/publisher_integration.vcxproj' /m /p:Configuration=Release /p:Platform='${{ matrix.platform }}' /p:PlatformToolset=v143 /restore
+          if ($LASTEXITCODE -ne 0) { throw 'Native standalone Publisher build failed' }
+          $testRoot = Join-Path $env:RUNNER_TEMP ('bridge-sdk-free-${{ matrix.platform }}-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
+          if (Test-Path -LiteralPath $testRoot) { throw 'Test directory already exists' }
+          try {
+            & "out/${{ matrix.platform }}/Release/publisher_integration.exe" $testRoot
+            if ($LASTEXITCODE -ne 0) { throw 'Real native Publisher integration failed' }
+            & ./scripts/verify-publisher-fixtures.ps1 -TestRoot $testRoot
+            if (-not $?) { throw 'Native Publisher fixture verification failed' }
+            Write-Host 'NATIVE_PUBLISHER_SDK_FREE_${{ matrix.platform }}=PASS'
+          } finally {
+            if (Test-Path -LiteralPath $testRoot) {
+              Remove-Item -LiteralPath $testRoot -Recurse -Force
+            }
+          }
+
   windows-build:
     runs-on: windows-latest
     strategy:
@@ -145,7 +176,7 @@ jobs:
           profile-check-script: scripts/probe-foobar-media-library-ui.ps1
           restart-profile-check: 'true'
       - name: Upload DLL
-        if: github.event_name != 'pull_request'
+        if: false # Private source-only qualification, never upload DLLs
         uses: actions/upload-artifact@v7
         with:
           name: foo_dj_library_bridge-${{ matrix.platform }}
@@ -155,7 +186,7 @@ jobs:
 
   package-component:
     name: Package verified foobar2000 component
-    if: github.event_name != 'pull_request'
+    if: false # No combined component packaging without owner rights clearance
     needs:
       - contract-tests
       - windows-build
