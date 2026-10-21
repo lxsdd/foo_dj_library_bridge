@@ -70,9 +70,13 @@ and independent source-provenance notes on safety Draft #9.
 
 ## Not a merge or release authorization
 
-The owner **approved this licensing decision**. This is strictly different
-from giving approval to merge PRs, publish DLLs, tag releases, or install
-the component on their personal Windows/DJ machine.
+The owner **approved this licensing decision** and subsequently gave
+standing permission to merge **qualified source-only PRs** autonomously,
+provided all contract, provenance, branch-protection and publication
+safety gates are respected. See
+[the autonomous promotion policy](AUTONOMOUS-PROMOTION-POLICY.md).
+This permission is **not** equivalent to authorization to publish DLLs
+or install the component on the owner's personal Windows/DJ machine.
 
 - The license is present **only on the unmerged Draft integration branch**;
   the repository default branch has not been changed.
