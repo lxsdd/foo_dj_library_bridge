@@ -119,6 +119,29 @@ internal static class BridgeNativeWindowsConsumer
                                   stage.Generation + "=PASS count=" + records.Count);
             }
 
+            // A genuine TerminateProcess interruption must not be readable by
+            // the unmodified DJ Library consumer, but restart generation 3 must.
+            string crashDir = System.IO.Path.Combine(args[0], "stages", "crash-incomplete");
+            DJLibrary.BridgeSnapshotStatus crashStatus =
+                DJLibrary.BridgeSnapshotReader.Inspect(crashDir, true);
+            Must(crashStatus.Present && crashStatus.SchemaVersion == 3 &&
+                 crashStatus.Generation == 2 && !crashStatus.Complete,
+                 "Original DJ Library accepted hard process kill as a complete snapshot");
+            bool hardCrashRejected = false;
+            try { _ = DJLibrary.BridgeSnapshotReader.LoadItems(crashDir, crashStatus); }
+            catch (InvalidDataException) { hardCrashRejected = true; }
+            Must(hardCrashRejected, "DJ Library LoadItems accepted real crash-incomplete state");
+            string crashRecoveryDir = System.IO.Path.Combine(args[0], "stages", "crash-recovered");
+            DJLibrary.BridgeSnapshotStatus crashRecovery =
+                DJLibrary.BridgeSnapshotReader.Inspect(crashRecoveryDir, true);
+            Must(crashRecovery.Present && crashRecovery.Compatible && crashRecovery.Complete &&
+                 crashRecovery.Error == null && crashRecovery.Generation == 3 &&
+                 crashRecovery.VerifiedItemCount == 1, "Original DJ Library rejected hard-crash recovery");
+            var crashItems = DJLibrary.BridgeSnapshotReader.LoadItems(crashRecoveryDir, crashRecovery);
+            Must(crashItems.Count == 1 && crashItems[0].Title == "After real host process crash",
+                 "Original DJ Library did not read recovered publisher content");
+            Console.WriteLine("ORIGINAL_DJ_LIBRARY_HARD_CRASH_RECOVERY=PASS");
+
             // An injected Windows output error wrote complete=0 for generation 9,
             // but left generation 8's compressed bytes in place. The unchanged
             // DJ Library consumer must explicitly reject this inconsistent pair.
