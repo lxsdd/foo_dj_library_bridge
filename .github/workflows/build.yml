@@ -189,6 +189,7 @@ jobs:
     if: false # No combined component packaging without owner rights clearance
     needs:
       - contract-tests
+      - windows-publisher-no-sdk
       - windows-build
     runs-on: windows-latest
     steps:
