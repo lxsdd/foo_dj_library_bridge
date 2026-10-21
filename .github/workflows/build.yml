@@ -91,18 +91,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
-      # Cache is repository-scoped and content addressed: no public Actions
-      # artifact, release, or vendor-SDK version substitution.
-      - name: Restore exactly pinned official foobar SDK archive
-        id: sdk-cache
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4 immutable
-        with:
-          path: external/SDK-2026-09-17.7z
-          key: foobar-sdk-win-2026-09-17-sha256-24fa95ed66b42624f593fd4b94c5efb08ae81dfebb92b79fe69c8cd170961e48
-      - name: Independently verify cached/downloaded official SDK before any compilation
-        shell: pwsh
-        run: ./scripts/bootstrap-sdk.ps1
-      - name: Compile exact SDK Bridge with VS2022 toolset
+      - name: Bootstrap exact foobar2000 SDK and build with VS2022 toolset
         shell: pwsh
         run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset v143
       - name: Verify local private Windows acceptance prerequisites
