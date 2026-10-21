@@ -322,6 +322,9 @@ int wmain(int argc, wchar_t** argv) {
             require(static_cast<bool>(oldStream), "Cannot read synthetic baseline gzip");
             const std::string oldBytes((std::istreambuf_iterator<char>(oldStream)),
                                         std::istreambuf_iterator<char>());
+            // Windows CRT readers may deny FILE_SHARE_DELETE. Closing before
+            // recovery is essential: a test-held handle is not a producer bug.
+            oldStream.close();
             wchar_t modulePath[32768]{};
             const DWORD moduleLength = GetModuleFileNameW(
                 nullptr, modulePath, static_cast<DWORD>(std::size(modulePath)));
@@ -369,6 +372,7 @@ int wmain(int argc, wchar_t** argv) {
             std::ifstream afterStream(crashPayload, std::ios::binary);
             const std::string afterBytes((std::istreambuf_iterator<char>(afterStream)),
                                           std::istreambuf_iterator<char>());
+            afterStream.close();
             require(afterBytes == oldBytes, "Hard kill changed previous committed gzip bytes");
             const auto incompleteDir = stages / "crash-incomplete";
             fs::create_directories(incompleteDir);
