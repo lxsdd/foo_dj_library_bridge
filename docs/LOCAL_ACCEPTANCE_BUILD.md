@@ -38,7 +38,16 @@ DLL oder anderen Artefakte nach GitHub hoch.
 
 - Windows 10/11 und **PowerShell 7.2+** (`pwsh.exe`).
 - Visual Studio 2022/2026 Build Tools mit **MSVC v143 für Win32/x64**
-  und `MSBuild`; `vswhere` wird für die Suche genutzt.
+  und `MSBuild`; `vswhere` und der bereits gefundene MSBuild-Pfad werden für
+  die unabhängige Erkennung von Compiler und Build-System genutzt.
+- Der Preflight meldet `BRIDGE_PREFLIGHT_MSVC_VERSIONS`, um eine installierte
+  VS2026-Standardversion 14.5x (**v145**) von einem kompatiblen 14.3x/14.4x
+  (**v143**) zu unterscheiden. Bei weiterhin fehlendem v143 darf keine
+  andere Compiler-Version stillschweigend als kompatibel gelten. In diesem
+  Fall kann der Eigentümer bei Bedarf im **Visual Studio Installer → Ändern →
+  Einzelne Komponenten** gezielt `MSVC v143 – VS 2022 C++ x64/x86 build tools`
+  nachinstallieren; **kein automatisches Setup oder Lizenzakzeptieren**.
+  Ein solcher Eingriff ist optional bis zur lokalen Geräteendprüfung.
 - **Git for Windows** sowie HTTPS-Zugriff auf die beiden genannten
   GitHub-Repositories und ausreichend temporärer Speicher.
 - Eine erfolgreich mit genau dieser Git-SHA qualifizierte Bridge-Version.
@@ -66,9 +75,10 @@ Audio-/Datenbank-Sicherheitsinvarianten.
 
 ## Noch offene Punkte
 
-- Der Skript-Preflight muss erneut auf dem aktuellen GitHub-Windows-Runner
-  erfolgreich geprüft werden; das frühere Script aus PR #9 verwendete
-  SDK 2026-09-17 und 7-Zip und wird **nicht** unverändert übernommen.
+- Der neue Preflight wird für jeden veränderten Commit erneut auf
+  Windows-CI-Runnern geprüft. Die lokale Toolchain auf dem Eigentümergerät
+  bleibt eine getrennte Endabnahmevoraussetzung; keine vom GitHub-Runner
+  verfügbaren Binärdateien werden zum Eigentümergerät veröffentlicht.
 - Ein grüner GitHub-Runner beweist **nicht** die Verfügbarkeit der
   lokalen MSVC/PowerShell/Git-Werkzeuge oder tatsächliche Wiedergabe
   auf dem persönlichen Rechner.

@@ -13,16 +13,28 @@ if ($env:OS -ne 'Windows_NT') { throw 'Windows 10/11 required.' }
 $msbuildCommand = Get-Command msbuild.exe -ErrorAction SilentlyContinue
 $msbuildPath = if ($msbuildCommand) { $msbuildCommand.Source } else { '' }
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+# MSBuild and optional v143 can be installed as separate VS components.
+# Do not filter *compiler* discovery by whether a VS instance advertises
+# the MSBuild component; MSBuild.exe is checked independently.
 $vsRoots = @()
 if (Test-Path -LiteralPath $vswhere -PathType Leaf) {
-    $vsRoots = @(& $vswhere -all -products '*' -requires Microsoft.Component.MSBuild -property installationPath |
-        Where-Object { $_ -and (Test-Path -LiteralPath $_) })
+    $vsRoots = @(& $vswhere -all -products '*' -property installationPath |
+        Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Container) })
     if (-not $msbuildPath) {
         $choices = @(& $vswhere -all -products '*' -requires Microsoft.Component.MSBuild -find 'MSBuild\Current\Bin\MSBuild.exe' |
             Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) })
         if ($choices.Count -gt 0) { $msbuildPath = $choices[0] }
     }
 }
+# Resolve a conventional VS root from MSBuild on PATH as another read-only
+# discovery fallback when vswhere does not report the compiler installation.
+if ($msbuildPath -and $msbuildPath -match '(?i)^(.*)[\\/]MSBuild[\\/]Current[\\/]Bin[\\/]MSBuild\.exe$') {
+    $derivedRoot = $Matches[1]
+    if (Test-Path -LiteralPath $derivedRoot -PathType Container) {
+        $vsRoots += $derivedRoot
+    }
+}
+$vsRoots = @($vsRoots | Sort-Object -Unique)
 $gitCommand = Get-Command git.exe -ErrorAction SilentlyContinue
 $gitPath = if ($gitCommand) { $gitCommand.Source } else { '' }
 if (-not $gitPath) {
@@ -38,11 +50,13 @@ if (-not $gitPath) {
 # The source-pinned solution specifies /p:PlatformToolset=v143, not just any MSBuild.
 # v143 MSVC versions use the 14.3x and 14.4x toolset directories.
 $hasV143 = $false
+$detectedMsvcVersions = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($root in $vsRoots) {
     $toolDir = Join-Path $root 'VC\Tools\MSVC'
     if (-not (Test-Path -LiteralPath $toolDir -PathType Container)) { continue }
     $toolsets = @(Get-ChildItem -LiteralPath $toolDir -Directory -ErrorAction SilentlyContinue)
     foreach ($tool in $toolsets) {
+        [void]$detectedMsvcVersions.Add($tool.Name)
         if ($tool.Name -match '^14\.(3[0-9]|4[0-9])\.' -and
             (Test-Path -LiteralPath (Join-Path $tool.FullName 'bin\Hostx64\x64\cl.exe') -PathType Leaf) -and
             (Test-Path -LiteralPath (Join-Path $tool.FullName 'bin\Hostx64\x86\cl.exe') -PathType Leaf)) {
@@ -52,6 +66,9 @@ foreach ($root in $vsRoots) {
     }
     if ($hasV143) { break }
 }
+# Log compiler version numbers only; do not expose workstation paths.
+$installedMsvc = @($detectedMsvcVersions | Sort-Object)
+Write-Host ('BRIDGE_PREFLIGHT_MSVC_VERSIONS=' + $(if ($installedMsvc.Count) { $installedMsvc -join ',' } else { 'NONE' }))
 Write-Host ('BRIDGE_PREFLIGHT_MSBUILD=' + $(if ($msbuildPath) { 'FOUND' } else { 'MISSING' }))
 Write-Host ('BRIDGE_PREFLIGHT_V143=' + $(if ($hasV143) { 'FOUND' } else { 'MISSING' }))
 Write-Host ('BRIDGE_PREFLIGHT_GIT=' + $(if ($gitPath) { 'FOUND' } else { 'MISSING' }))
