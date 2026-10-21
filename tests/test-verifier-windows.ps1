@@ -106,6 +106,37 @@ try {
     try { & $verifier -BridgeDirectory $invalidUtf8 } catch { $rejectedInvalidUtf8 = $true }
     if (-not $rejectedInvalidUtf8) { throw 'Invalid UTF-8 was silently accepted' }
     Write-Host "PASS: PowerShell $($PSVersionTable.PSVersion) rejects invalid UTF-8 without loss"
+    # A physical CUE container can legitimately have multiple subsongs,
+    # but differing path casing must never bypass path+subsong deduplication.
+    foreach ($variant in @('two-subsongs', 'duplicate-case-folded-path')) {
+        $dir = New-SyntheticBridge -Name $variant -Schema 3
+        [byte[]]$raw = @(Get-SyntheticGzipPayload -Directory $dir)
+        $data = $utf8.GetString($raw)
+        $lines = @($data.TrimEnd([char]10) -split [string][char]10)
+        if ($lines.Count -ne 2) { throw "Unexpected fixture row layout: $variant" }
+        $second = @($lines[1] -split $tab)
+        if ($variant -eq 'two-subsongs') {
+            $second[1] = '1'
+        } else {
+            $second[0] = 'x:\nonexistent_synthetic\TRACK.WAV'
+        }
+        $payload = $data + ($second -join $tab) + $lf
+        Set-SyntheticGzipPayload -Directory $dir -Bytes $utf8.GetBytes($payload)
+        $stateFile = Join-Path $dir 'bridge-state.tsv'
+        $oldState = [System.IO.File]::ReadAllText($stateFile, $utf8)
+        $newState = $oldState.Replace('item_count' + $tab + '1', 'item_count' + $tab + '2')
+        if ($newState -eq $oldState) { throw 'Synthetic count not updated' }
+        [System.IO.File]::WriteAllText($stateFile, $newState, $utf8)
+        if ($variant -eq 'two-subsongs') {
+            & $verifier -BridgeDirectory $dir
+            Write-Host "PASS: PowerShell $($PSVersionTable.PSVersion) distinguishes two CUE subsongs"
+        } else {
+            $rejected = $false
+            try { & $verifier -BridgeDirectory $dir } catch { $rejected = $true }
+            if (-not $rejected) { throw 'Case-insensitive identity collision not rejected' }
+            Write-Host "PASS: PowerShell $($PSVersionTable.PSVersion) rejects path casing collision"
+        }
+    }
     $rich = New-SyntheticBridge -Name 'valid-rich-json' -Schema 3 -Extra '{"MOOD":["warm","cold"]}' -Vectors '[{"name":"ARTIST","values":["A","A",""]},{"name":"MOOD","values":["warm"]}]'
     & $verifier -BridgeDirectory $rich
     Write-Host 'PASS: valid multivalue metadata and empty vector strings preserved'
