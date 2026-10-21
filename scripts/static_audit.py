@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import hashlib
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -16,6 +17,29 @@ build = (root / "scripts" / "build.ps1").read_text(encoding="utf-8")
 errors = []
 def require(ok, message):
     if not ok: errors.append(message)
+
+# Licensing is an owner-approved restricted combined grant. A stale or
+# MIT-only LICENSE would silently restore resale rights, so treat changes
+# as a legal review gate separate from the build/distribution hold.
+license_bytes = (root / "LICENSE").read_bytes()
+license_text = license_bytes.decode("utf-8", errors="strict")
+license_blob = hashlib.sha1(
+    f"blob {len(license_bytes)}\0".encode("ascii") + license_bytes
+).hexdigest()
+require(
+    license_blob == "b9998241259c5cc30a512ae25257409c48319f9a",
+    "owner-approved MIT plus Commons Clause LICENSE changed: re-review full legal grant",
+)
+for required in (
+    "Copyright (c) 2026 lxsdd",
+    '"Commons Clause" License Condition v1.0',
+    "the right to Sell the Software",
+    "Software: foo_dj_library_bridge",
+    "License: MIT",
+    "Licensor: lxsdd",
+    "Independently licensed third-party",
+):
+    require(required in license_text, f"mandatory restricted-license term absent: {required}")
 
 expected_header = "path\tsubsong\tartist\tartists\ttitle\toriginal_title\tremixed_by\talbum\talbum_artist\ttrack_number\ttotal_tracks\tdisc_number\ttotal_discs\tdate\tgenre\tstyle\tbpm\tlabel\tcatalog_number\tduration_seconds\tisrc\tcodec\tbitrate\ttag_fingerprint\textra_metadata_json\tmetadata_vectors_json"
 require(expected_header.replace("\t", "\\t") in contract, "schema-v3 header changed")
@@ -81,6 +105,7 @@ if errors:
     for e in errors: print("-", e)
     sys.exit(1)
 print("STATIC AUDIT PASS")
+print("- owner-approved lxsdd MIT + Commons Clause v1.0 license exact Git-blob allowlist")
 print("- read-only foobar SDK adapter")
 print("- profile-local per-instance storage via core_api::get_profile_path()")
 print("- source metadata in schema-v3 state")
