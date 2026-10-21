@@ -95,6 +95,8 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Real native Publisher integration failed' }
             & ./scripts/verify-publisher-fixtures.ps1 -TestRoot $testRoot
             if (-not $?) { throw 'Native Publisher fixture verification failed' }
+            & ./scripts/verify-original-bridge-consumers.ps1 -TestRoot $testRoot
+            if (-not $?) { throw 'Pinned original reader interop failed' }
             Write-Host 'NATIVE_PUBLISHER_SDK_FREE_${{ matrix.platform }}=PASS'
           } finally {
             if (Test-Path -LiteralPath $testRoot) {
@@ -126,43 +128,8 @@ jobs:
             & "out/${{ matrix.platform }}/Release/publisher_integration.exe" $testRoot
             if ($LASTEXITCODE -ne 0) { throw 'Native Publisher test failed' }
             & ./scripts/verify-publisher-fixtures.ps1 -TestRoot $testRoot
-            # Use the exact original DJ Library reader, not a test-only replacement.
-            $readerCommit = '211e85726bcc7e63ce0f9b81f04c2e61257dc5d8'
-            $readerBlob = '7ec0d945e5a31443c4e38b6fe72439ad07f6dc4a'
-            $readerFile = Join-Path $testRoot 'OriginalBridgeSnapshot.cs'
-            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/lxsdd/dj-library-public/$readerCommit/src/BridgeSnapshot.cs" -OutFile $readerFile -ErrorAction Stop
-            $actualBlob = (& git hash-object -- $readerFile).Trim()
-            if ($LASTEXITCODE -ne 0 -or $actualBlob -cne $readerBlob) {
-              throw "Original DJ Library reader SHA mismatch: $actualBlob"
-            }
-            $consumerOut = Join-Path $testRoot 'native-consumer'
-            & dotnet build 'tests/native-consumer/BridgeNativeWindowsConsumer.csproj' -c Release "-p:ExternalBridgeSource=$readerFile" -o $consumerOut --nologo
-            if ($LASTEXITCODE -ne 0) { throw 'Original DJ Library reader compilation failed' }
-            & dotnet (Join-Path $consumerOut 'BridgeNativeWindowsConsumer.dll') $testRoot
-            if ($LASTEXITCODE -ne 0) { throw 'Actual native Publisher to original DJ Library C# consumer validation failed' }
-            # Read the same actual native Publisher bytes with the production
-            # MyTagSync Bridge readers. Pin both original source files by Git blob.
-            $mytagCommit = 'f891f9cde526601e6d6ce098c20b7c8b65136193'
-            $mytagFiles = @(
-              @{ Relative = 'BridgeSnapshot.cs'; Sha = '7f3774cdf68d42ccc0050f971e30b8bfd4aab407'; Property = 'MyTagBridgeSource' },
-              @{ Relative = 'BridgeSourceDiscovery.cs'; Sha = '8ba87ffbba0dc2a50a0d9b7cf4030c9361c19264'; Property = 'MyTagDiscoverySource' }
-            )
-            $mytagSource = @{}
-            foreach ($source in $mytagFiles) {
-              $sourcePath = Join-Path $testRoot ('original-mytag-' + $source.Relative)
-              $uri = "https://raw.githubusercontent.com/lxsdd/rekordbox-mytag-sync/$mytagCommit/src/RekordboxMyTagSync/Core/$($source.Relative)"
-              Invoke-WebRequest -Uri $uri -OutFile $sourcePath -ErrorAction Stop
-              $actualGitBlob = (& git hash-object -- $sourcePath).Trim()
-              if ($LASTEXITCODE -ne 0 -or $actualGitBlob -cne $source.Sha) {
-                throw "Original MyTagSync $($source.Relative) source hash mismatch"
-              }
-              $mytagSource[$source.Property] = $sourcePath
-            }
-            $mytagOut = Join-Path $testRoot 'original-mytag-consumer'
-            & dotnet build 'tests/mytag-consumer/OriginalMyTagBridgeInterop.csproj' -c Release "-p:MyTagBridgeSource=$($mytagSource.MyTagBridgeSource)" "-p:MyTagDiscoverySource=$($mytagSource.MyTagDiscoverySource)" -o $mytagOut --nologo
-            if ($LASTEXITCODE -ne 0) { throw 'Original MyTagSync Bridge source compilation failed' }
-            & dotnet (Join-Path $mytagOut 'OriginalMyTagBridgeInterop.dll') $testRoot
-            if ($LASTEXITCODE -ne 0) { throw 'Native Bridge Publisher to original MyTagSync Bridge consumer failed' }
+            & ./scripts/verify-original-bridge-consumers.ps1 -TestRoot $testRoot
+            if (-not $?) { throw 'Original consumers did not accept native Publisher snapshots' }
           } finally {
             if (Test-Path -LiteralPath $testRoot) {
               Remove-Item -LiteralPath $testRoot -Recurse -Force
