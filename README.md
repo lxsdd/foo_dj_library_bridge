@@ -13,7 +13,7 @@ This follows foobar2000's profile/portable architecture. Standard and portable f
 ## Current contract
 
 - foobar2000: v2.0+
-- SDK: **2026-09-17**
+- SDK: **2026-10-01** (immutable pinned owner-controlled Git source)
 - C++: **C++20**
 - Windows: Win32 + x64
 - Identity: `(path, subsong)`
@@ -55,7 +55,7 @@ Open a Visual Studio Developer PowerShell and run:
 ./scripts/build.ps1 -Platform Win32 -Configuration Release
 ```
 
-The script downloads the exact official SDK archive from foobar2000.org into the ignored `external/` directory. GitHub Actions performs Win32/x64 Windows builds and independent GCC + Clang contract tests on Linux.
+The current Draft `scripts/bootstrap-sdk.ps1` stages SDK 2026-10-01 from an immutable owner-controlled Git tree, not a fresh official SDK archive download. Git-tree integrity is verified; this is not a claim of original archive byte verification. GitHub Actions tests real foobar2000 v2.26.1 isolated hosts on Win32/x64, original DJ Library/MyTagSync consumers, CUE/indexing and restart, strict Windows v2/v3 verification, and SHA-256 no-unexpected-media-write checks using only synthetic files.
 
 ## Runtime verification
 
@@ -73,14 +73,29 @@ For another/portable profile:
 
 ## Status
 
-`0.1.0-rc4`: schema-v3 development candidate for the single-snapshot lossless metadata-vector projection. This revision must not be promoted to `main`/release until downstream compatibility has been qualified against DJ Library and Rekordbox MyTag Sync.
+`0.1.0-rc4`: schema-v3 development candidate. The integrated source-only Draft PR #17 has successful exact-SHA synthetic foobar2000 host, DJ Library/MyTagSync original-reader, CUE, crash recovery, verifier and audio-integrity CI. This does not equal acceptance on the private DJ collection, nor an owner release authorization.
 
 RC2 remains the last real-Windows-qualified profile-local/multi-instance baseline: a portable 1,345-item profile and the standard 54,129-item profile coexist independently, and DJ Library can switch between them without cross-overwrite.
 
-## GitHub candidate and release flow
+## Source-use proposal, copyright and release freeze
 
-GitHub is the canonical build authority. The workflow builds and tests both Win32 and x64, verifies the PE machine architecture, and packages one combined foobar2000 component with the Win32 DLL in the archive root and the x64 DLL under `x64/`.
+There is **no active root project `LICENSE`**. The owner intends free use,
+including by professional DJs performing commercially, while preventing
+the sale of the Bridge itself or substantially equivalent paid offerings.
+The proposed **MIT + Commons Clause License Condition v1.0** is
+**source-available, not OSI open source**, and currently **nonbinding**.
+See [the license proposal](docs/PROPOSED-LICENSING-MIT-COMMONS-CLAUSE.md)
+and [third-party inventory](docs/THIRD-PARTY-NOTICES-INVENTORY.md).
+Final license text, licensor name, rights clearance and copyright notice
+require explicit owner approval. The Bridge license cannot replace SDK,
+pfc, libPPUI, player or other independent third-party licenses.
 
-A manually dispatched candidate run produces an immutable `foo_dj_library_bridge-component-<commit>` Actions artifact. `VERSION` is the canonical package/release version source.
+**Do not dispatch candidate, package or manual release workflows from `main`.**
+The protected `main` still has historical publish-capable workflows;
+source-only upload/package/release guards have not been merged there.
+Even a successful full CI does not approve merging, tagging, release,
+publishing DLLs or installing on the owner personal computer.
 
-Final release promotion accepts only a successful manually dispatched candidate from `main`, verifies the manifest, commit binding, package version, SHA-256 and component layout, then creates tag `v<VERSION>` and publishes those exact bytes without rebuilding.
+The historical steps in [RELEASE.md](RELEASE.md) are suspended pending
+separate owner approvals, complete notices, private-device read-only
+acceptance and reviewed exact-SHA promotion.
