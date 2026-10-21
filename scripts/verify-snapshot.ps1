@@ -72,6 +72,11 @@ try {
             }
             $count = 0
             while (($line = $sr.ReadLine()) -ne $null) {
+                # Refuse an overlong stream immediately instead of inflating the
+                # remainder of a corrupt gzip with a false small item_count.
+                if ($count -ge $declaredCount) {
+                    throw "Payload has more rows than declared item_count=$declaredCount"
+                }
                 # PowerShell negative split limits suppress the actual TSV split.
                 # Split all tabs and retain trailing empty columns for validation.
                 $parts = $line -split "`t"
