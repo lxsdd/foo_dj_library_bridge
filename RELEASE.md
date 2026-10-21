@@ -1,5 +1,18 @@
 # foo_dj_library_bridge release procedure
 
+> **SUSPENDED — DO NOT EXECUTE, source-only Draft (2026-10-21).**
+> Historical `main` candidate and manual release workflows remain
+> publish-capable and are NOT yet covered by unmerged Draft guards.
+> **Do not dispatch candidate/package/release workflows, merge Drafts,
+> create tags or distribute DLLs.** Green synthetic host CI is not
+> an owner release approval. The proposed MIT + Commons Clause v1.0
+> license is nonbinding and the repo has no operative root `LICENSE`.
+> Rights and exact licensor/copyright notice, third-party notices,
+> personal device read-only acceptance and each individual publication
+> action all require explicit owner clearance.
+> The procedures below are **historical design notes only** until
+> formally requalified and separately approved.
+
 GitHub is the canonical source and build authority. A release is promoted from a qualified candidate; it is never rebuilt.
 
 ## Version source
