@@ -10,7 +10,7 @@ if ($env:GITHUB_ACTIONS -ne 'true' -or [string]::IsNullOrWhiteSpace($env:RUNNER_
     throw 'Original consumer interoperability is restricted to isolated GitHub runners.'
 }
 $testPath = [IO.Path]::GetFullPath($TestRoot)
-$runnerPrefix = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd([char]'\\', [char]'/') + [IO.Path]::DirectorySeparatorChar
+$runnerPrefix = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd([char]92, [char]'/') + [IO.Path]::DirectorySeparatorChar
 if (-not $testPath.StartsWith($runnerPrefix, [StringComparison]::OrdinalIgnoreCase)) {
     throw 'Refusing to read snapshots outside the disposable GitHub runner directory.'
 }
