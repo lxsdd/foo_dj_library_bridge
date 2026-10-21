@@ -118,6 +118,24 @@ internal static class MyTagBridgeInterop
                                   generation + "=PASS count=" + count);
             }
 
+            // Real native process termination: reject the incomplete marker
+            // before reading, then accept fresh generation 3 after restart.
+            var hardCrashDir = Path.Combine(args[0], "stages", "crash-incomplete");
+            var hardCrashStatus = BridgeSourceDiscovery.Inspect(hardCrashDir, selected: true);
+            Must(!hardCrashStatus.Safe, "Original MyTagSync accepted a genuine hard-kill snapshot");
+            bool hardCrashRejected = false;
+            try { _ = BridgeSourceDiscovery.ReadStable(hardCrashDir); }
+            catch (InvalidDataException) { hardCrashRejected = true; }
+            Must(hardCrashRejected, "MyTagSync ReadStable accepted a real crash-incomplete state");
+            var hardRecoveryDir = Path.Combine(args[0], "stages", "crash-recovered");
+            var hardRecovery = BridgeSourceDiscovery.ReadStable(hardRecoveryDir);
+            Must(hardRecovery.State.Generation == 3 &&
+                 hardRecovery.Tracks.Count == 1 &&
+                 hardRecovery.Tracks[0].GetFieldValues("TITLE")
+                     .SequenceEqual(new[] {"After real host process crash"}),
+                 "Original MyTagSync failed to read Publisher restart after real process kill");
+            Console.WriteLine("ORIGINAL_MYTAG_HARD_CRASH_RECOVERY=PASS");
+
             var incomplete = Path.Combine(args[0], "stages", "g9-fail-closed");
             var rejected = BridgeSourceDiscovery.Inspect(incomplete, selected: true);
             Must(!rejected.Safe, "MyTagSync Inspect accepted an incomplete atomic marker");
