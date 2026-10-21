@@ -7,10 +7,43 @@
 #include <chrono>
 #include <cstdio>
 #include <fstream>
+#include <limits>
+#include <set>
 #include <stdexcept>
 
 namespace djbridge {
 namespace {
+
+// DJ Library and MyTagSync use OrdinalIgnoreCase(path) + subsong.
+// Windows CompareStringOrdinal uses the corresponding ordinal UTF-16
+// case-insensitive comparison: never commit ambiguous identities.
+// Retain each original UTF-8 path verbatim in the published TSV.
+std::wstring utf8_path_to_utf16(std::string_view path) {
+    if (path.empty() || path.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)())) {
+        throw std::runtime_error("invalid or empty Bridge track path");
+    }
+    const int length = static_cast<int>(path.size());
+    const int needed = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path.data(), length, nullptr, 0);
+    if (needed <= 0) throw std::runtime_error("invalid UTF-8 Bridge track path");
+    std::wstring wide(static_cast<std::size_t>(needed), L'\0');
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+                            path.data(), length, wide.data(), needed) != needed) {
+        throw std::runtime_error("Bridge UTF-8 track path conversion failed");
+    }
+    return wide;
+}
+
+struct PathSubsongLess {
+    bool operator()(const std::pair<std::wstring, std::uint32_t>& a,
+                    const std::pair<std::wstring, std::uint32_t>& b) const {
+        const int result = CompareStringOrdinal(
+            a.first.c_str(), static_cast<int>(a.first.size()),
+            b.first.c_str(), static_cast<int>(b.first.size()), TRUE);
+        if (result == 0) throw std::runtime_error("Windows ordinal path comparison failed");
+        if (result == CSTR_EQUAL) return a.second < b.second;
+        return result == CSTR_LESS_THAN;
+    }
+};
 
 void flush_path(const std::filesystem::path& path) {
     HANDLE h = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -171,7 +204,13 @@ void Publisher::publish(const std::vector<Record>& input) {
         GzipStoredWriter gz(items_tmp);
         gz.write(kHeader);
         gz.write("\n");
+        std::set<std::pair<std::wstring, std::uint32_t>, PathSubsongLess> identities;
         for (auto record : snapshot) {
+            if (!identities.emplace(utf8_path_to_utf16(record.path), record.subsong).second) {
+                // Already published complete=0: preserve the previous gzip and
+                // reject this ambiguous generation, never silently drop tracks.
+                throw std::runtime_error("duplicate case-insensitive Bridge path+subsong identity");
+            }
             if (record.tag_fingerprint.empty()) record.tag_fingerprint = fingerprint_for(record);
             gz.write(to_tsv_line(record));
             gz.write("\n");
