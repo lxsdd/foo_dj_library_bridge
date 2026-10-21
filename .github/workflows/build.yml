@@ -110,7 +110,7 @@ jobs:
           key: foobar-sdk-win-2026-09-17-sha256-24fa95ed66b42624f593fd4b94c5efb08ae81dfebb92b79fe69c8cd170961e48
       - name: Compile exact SDK Bridge with VS2022 toolset
         shell: pwsh
-        run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset=v143
+        run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset v143
       - name: Verify local private Windows acceptance prerequisites
         shell: pwsh
         run: ./scripts/local-acceptance-build.ps1 -PreflightOnly
