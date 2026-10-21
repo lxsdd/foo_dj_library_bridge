@@ -54,7 +54,9 @@ internal static class BridgeNativeWindowsConsumer
                 ("g7-delete", 7, 0),
                 ("g8-many", 8, 1024),
                 ("g10-recovery", 10, 1),
-                ("g11-large", 11, 54129)
+                ("g11-large", 11, 54129),
+                ("identity-valid-subsongs", 1, 2),
+                ("identity-recovered-subsongs", 3, 2)
             };
             string oldFingerprint = "";
             foreach (var stage in stages)
@@ -99,6 +101,16 @@ internal static class BridgeNativeWindowsConsumer
                 if (stage.Name == "g10-recovery")
                     Must(records.Single().Title == "Recovered after failure",
                          "Recovered snapshot not readable in original C# consumer");
+                if (stage.Name.StartsWith("identity-", StringComparison.Ordinal))
+                {
+                    Must(records.Count == 2 &&
+                         records[0].Path.Equals(records[1].Path, StringComparison.OrdinalIgnoreCase) &&
+                         records.Select(x => x.Subsong).OrderBy(x => x).SequenceEqual(new[] {0, 1}) &&
+                         records.Single(x => x.Subsong == 0).Title == "CUE subsong A" &&
+                         records.Single(x => x.Subsong == 1).Title == "CUE subsong B",
+                         "Original DJ Library reader lost distinct CUE subsong identities: " + stage.Name);
+                    Console.WriteLine("NATIVE_ORIGINAL_DJLIB_CUE_SUBSONGS=PASS " + stage.Name);
+                }
                 if (stage.Name == "g11-large")
                     Must(records[0].Title.StartsWith("Synthetic library track ", StringComparison.Ordinal) &&
                          records[^1].Title.StartsWith("Synthetic library track ", StringComparison.Ordinal),
