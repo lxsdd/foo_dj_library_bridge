@@ -200,6 +200,18 @@ void Publisher::publish(const std::vector<Record>& input) {
     write_state_file(state_tmp, next_generation, false, snapshot.size(), utc, source_);
     replace_atomic(state_tmp, state_final);
 
+#if defined(DJBRIDGE_TEST_PAUSE_AFTER_INCOMPLETE)
+    // TEST EXECUTABLE ONLY: publisher_integration.vcxproj defines this macro;
+    // production foo_dj_library_bridge DLL builds do not. Let the parent test
+    // forcefully terminate this child after observing a real complete=0
+    // commit, before any gzip replacement or recovery code executes.
+    wchar_t crashProbe[2]{};
+    if (GetEnvironmentVariableW(L"DJBRIDGE_CI_CRASH_PROBE", crashProbe, 2) == 1 &&
+        crashProbe[0] == L'1') {
+        Sleep(30000);
+    }
+#endif
+
     {
         GzipStoredWriter gz(items_tmp);
         gz.write(kHeader);
