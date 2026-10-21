@@ -250,16 +250,40 @@ if ($null -eq $priorSnap -or $priorSnap.rows.Count -ne 1) {
  throw 'External CUE cleanup left an unexpected baseline before multi-file test.'
 }
 $baselineGen=$priorSnap.generation
+# File-system monitors may coalesce two WAV creations within one short burst.
+# Establish a genuine foobar callback for A before introducing B. Both must
+# still be present in the same real, complete snapshot before the CUE is made.
 New-MultiCueWave -Target $multiA -Seconds 1
-New-MultiCueWave -Target $multiB -Seconds 2
 $multiAHash=(Get-FileHash -LiteralPath $multiA -Algorithm SHA256).Hash
+$firstBackingDeadline=[DateTime]::UtcNow.AddSeconds(35)
+$firstBackingGen=0L
+while ([DateTime]::UtcNow -lt $firstBackingDeadline) {
+ try {
+  $snap=Read-ActualSnapshot
+  if ($null -ne $snap -and $snap.generation -gt $baselineGen -and
+      $snap.rows.Count -eq 2) {
+   $names=@($snap.rows | ForEach-Object { [IO.Path]::GetFileName($_[0]) })
+   if ($names -contains 'Synthetic Multi A.wav' -and
+       $names -contains 'Synthetic 01.wav') {
+    $firstBackingGen=$snap.generation
+    break
+   }
+  }
+ } catch [IO.IOException] {}
+ Start-Sleep -Milliseconds 350
+}
+if ($firstBackingGen -eq 0) {
+ throw 'Real foobar Media Library failed to index first multi-file WAV source.'
+}
+Write-Host "BRIDGE_MULTI_CUE_FIRST_PHYSICAL_SOURCE_$Architecture=PASS real_callback"
+New-MultiCueWave -Target $multiB -Seconds 2
 $multiBHash=(Get-FileHash -LiteralPath $multiB -Algorithm SHA256).Hash
 $twoBackingDeadline=[DateTime]::UtcNow.AddSeconds(45)
 $twoBackingGen=0L
 while ([DateTime]::UtcNow -lt $twoBackingDeadline) {
  try {
   $snap=Read-ActualSnapshot
-  if ($null -ne $snap -and $snap.generation -gt $baselineGen -and
+  if ($null -ne $snap -and $snap.generation -gt $firstBackingGen -and
       $snap.rows.Count -eq 3) {
    $backingNames=@($snap.rows | ForEach-Object { [IO.Path]::GetFileName($_[0]) })
    if ($backingNames -contains 'Synthetic Multi A.wav' -and
