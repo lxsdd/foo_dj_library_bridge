@@ -9,7 +9,19 @@ if (Test-Path (Join-Path $SdkRoot 'foobar2000\SDK\foobar2000.h')) {
 }
 New-Item -ItemType Directory -Force -Path $External | Out-Null
 $Archive = Join-Path $External "SDK-$SdkVersion.7z"
-Invoke-WebRequest -UseBasicParsing -Uri "https://www.foobar2000.org/downloads/SDK-$SdkVersion.7z" -OutFile $Archive
+# Official vendor transport occasionally refuses hosted runner connections.
+# Retry only the same official URL, without accepting a mirror or changing SDK.
+for ($attempt = 1; $attempt -le 3; $attempt++) {
+    try {
+        Invoke-WebRequest -UseBasicParsing -MaximumRedirection 5 -TimeoutSec 90 -ErrorAction Stop -Uri "https://www.foobar2000.org/downloads/SDK-$SdkVersion.7z" -OutFile $Archive
+        break
+    } catch {
+        Remove-Item -LiteralPath $Archive -Force -ErrorAction SilentlyContinue
+        if ($attempt -eq 3) { throw }
+        Write-Warning "Official SDK connection failed (attempt $attempt/3). Retrying same host."
+        Start-Sleep -Seconds (2 * $attempt)
+    }
+}
 
 $SevenZip = $null
 $SevenZipCommand = Get-Command '7z.exe' -ErrorAction SilentlyContinue
