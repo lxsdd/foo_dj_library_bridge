@@ -44,7 +44,13 @@ require('FOOBAR2000_TARGET_VERSION=81' in project, "foobar target version 81 mis
 require('<LanguageStandard>stdcpp20</LanguageStandard>' in project, "C++20 missing")
 require('MultiThreadedDLL' in project and 'MultiThreadedDebugDLL' in project, "component runtime library is not aligned with official component sample")
 require('foobar2000_sdk_helpers.vcxproj' not in project, "unused helpers project reference should not be linked")
-require("$SdkVersion = '2026-09-17'" in bootstrap, "SDK pin changed")
+require("$SdkVersion = '2026-10-01'" in bootstrap, "SDK must use currently approved 2026-10-01")
+require("$TemplateCommit = '31a35947a7527826c2199491692802e3ce3d8bd7'" in bootstrap, "Immutable SDK source commit missing")
+require("$SdkTree = '2ba8caeb73f72633ad7f60ee5f72ed8074a0eb17'" in bootstrap, "Immutable SDK source tree missing")
+require("$ExpectedArchiveHash = 'd4c55077336fae81bf8df0259b5b2748fa45ea84132c656ead93eb123cbcdc26'" in bootstrap,
+        "SDK upstream archive evidence pin missing")
+require("Invoke-WebRequest" not in bootstrap and "foobar2000_component_template.git" in bootstrap,
+        "Bridge SDK bootstrap must use the pinned owner-controlled Git source, not vendor archive HTTP")
 require("[string]$PlatformToolset = 'v143'" in build, "VS2022 v143 CI toolset pin missing")
 require('GENERIC_WRITE' in publisher and 'FlushFileBuffers' in publisher, "durable temp-file flush must use a writable handle")
 require('MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH' in publisher, "atomic write-through replace missing")
