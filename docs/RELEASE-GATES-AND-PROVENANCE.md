@@ -16,7 +16,7 @@ Neither downstream databases nor real audio libraries may be modified.
 | Embedded FLAC CUE | **Vorbis-comment field** `CUESHEET`, not native FLAC metadata block, PR #15 / run 39505172077 | Win32/x64 CI PASS |
 | Schema-v3 verifier and v2 compatibility | PR #7; distinguish `Inspect` structure from `LoadItems` semantics; re-check exact HEAD and its CI, not an older PR description | Independent Draft; final HEAD qualification pending |
 | Binary publication hold | PR #9: disabled upload/package/release, scan + reviewed workflow Git-blob allowlist; exact-head CI and artifact count must be checked after every amendment | Independent Draft, **not on main** |
-| Vendor SDK integrity | Archive `SDK-2026-09-17.7z`: 793,742 bytes, SHA-256 `24fa95ed66b42624f593fd4b94c5efb08ae81dfebb92b79fe69c8cd170961e48`; two hosted Windows checks | Archive identity qualified; exact notices still to compare/review |
+| Vendor SDK integrity | Archive `SDK-2026-09-17.7z`: 793,742 bytes, SHA-256 `24fa95ed66b42624f593fd4b94c5efb08ae81dfebb92b79fe69c8cd170961e48`; two hosted Windows checks | Archive SHA-256 and all three original license texts bytewise verified; release notices and Bridge rights still OPEN |
 | Component source provenance and notices | Trace original Bridge code, document copyright/ownership; review exact pinned `sdk-license.txt`, `pfc/pfc-license.txt`, `libPPUI/libPPUI-license.txt` and determine complete notices; provide an appropriate root LICENSE/attribution only after rights are established | **BLOCKED for binary release** |
 | Actual private machine end acceptance | Real Windows 11 x64 laptop, isolated foobar profile(s), profile separation, large user library and portability; user authorizes activity | **DEFERRED, no user action now** |
 | Tag/database safety | Invariant: no writing user audio, physical tags, foobar databases, rekordbox/MyTagSync databases; verify within controlled environment before any personal use | Source and synthetic tests only; real end acceptance pending |
@@ -51,12 +51,35 @@ gates currently exist **only on the independent PR #9 branch**. Therefore:
   Do not bundle an installed player or redistribute player DLLs in a
   component candidate. See <https://www.foobar2000.org/license> and
   <https://www.foobar2000.org/SDK>.
-- A public SDK mirror is a useful comparison, not proof of what is present
-  in the pinned 2026-09-17 vendor archive. Only the verified archive and
-  the three extracted original license files can close that provenance gate.
-- The official SDK license and distinct pfc/libPPUI licenses require a
-  complete redistribution/notice review. Do not assert blanket permission
-  from the fact that an SDK can be downloaded or from an existing CI PASS.
+- **Original SDK notice text identity VERIFIED, 2026-10-21.** Both hosted
+  Windows builds independently extracted license files from the pinned
+  793,742-byte vendor archive and reported identical original-file hashes
+  (source-only run [39566578193](https://github.com/lxsdd/foo_dj_library_bridge/actions/runs/39566578193)):
+  - \`sdk-license.txt\`: 1,441 bytes, SHA-256
+    \`e1413fbd19af042ae2c7e47d2d323471436cc3b601dfd5dd975986a58c9e7967\`;
+  - \`pfc/pfc-license.txt\`: 856 bytes, SHA-256
+    \`03874acd85ca8ee28d5e33abbfbc00352ca05b4a59da085241bc1b47d7269d66\`;
+  - \`libPPUI/libPPUI-license.txt\`: 856 bytes, same SHA-256 as pfc.
+  A public unmodified SDK mirror at
+  <https://github.com/reupen/foobar2000-sdk-unmodified>
+  contains text Git blobs \`fb358788e9b8459de9a8225af79159d042fa93da\`
+  (SDK) and \`ca25433e1f0cd9b63a576791ee832d704862abb9\`
+  (both pfc/libPPUI). After *only* LF->CRLF conversion the SHA-256 and
+  byte counts match all three original archive files **exactly**. This
+  makes the contents of these mirrored texts cryptographically tied to
+  the pinned vendor archive; it does not make the mirror the vendor.
+- **License-obligation inventory:** The SDK license permits source/binary
+  redistribution with its retained source copyright/conditions/disclaimer
+  and prohibits endorsement using author/contributor names without
+  permission. The pfc and libPPUI license texts are the same, granting
+  broad use including commercial use, subject to proper attribution of
+  origin, marking altered source versions, and retaining the notice in
+  source distributions. Copy/compile the exact required notices for any
+  later permitted distribution; do not present this factual license
+  review as an authorization for the separate original Bridge code.
+- Public binary distribution is still held pending ownership/rights
+  assessment for the Bridge sources and verified packaging/notice
+  obligations. Never include or redistribute foobar2000 player binaries.
 - `main` currently lacks a root LICENSE that establishes redistribution
   rights for the original Bridge sources. Do not invent an SPDX license or
   claim rights to third-party material. Request an owner decision **only**
