@@ -55,15 +55,15 @@ gates currently exist **only on the independent PR #9 branch**. Therefore:
   Windows builds independently extracted license files from the pinned
   793,742-byte vendor archive and reported identical original-file hashes
   (source-only run [39566578193](https://github.com/lxsdd/foo_dj_library_bridge/actions/runs/39566578193)):
-  - \`sdk-license.txt\`: 1,441 bytes, SHA-256
-    \`e1413fbd19af042ae2c7e47d2d323471436cc3b601dfd5dd975986a58c9e7967\`;
-  - \`pfc/pfc-license.txt\`: 856 bytes, SHA-256
-    \`03874acd85ca8ee28d5e33abbfbc00352ca05b4a59da085241bc1b47d7269d66\`;
-  - \`libPPUI/libPPUI-license.txt\`: 856 bytes, same SHA-256 as pfc.
+  - `sdk-license.txt`: 1,441 bytes, SHA-256
+    `e1413fbd19af042ae2c7e47d2d323471436cc3b601dfd5dd975986a58c9e7967`;
+  - `pfc/pfc-license.txt`: 856 bytes, SHA-256
+    `03874acd85ca8ee28d5e33abbfbc00352ca05b4a59da085241bc1b47d7269d66`;
+  - `libPPUI/libPPUI-license.txt`: 856 bytes, same SHA-256 as pfc.
   A public unmodified SDK mirror at
   <https://github.com/reupen/foobar2000-sdk-unmodified>
-  contains text Git blobs \`fb358788e9b8459de9a8225af79159d042fa93da\`
-  (SDK) and \`ca25433e1f0cd9b63a576791ee832d704862abb9\`
+  contains text Git blobs `fb358788e9b8459de9a8225af79159d042fa93da`
+  (SDK) and `ca25433e1f0cd9b63a576791ee832d704862abb9`
   (both pfc/libPPUI). After *only* LF->CRLF conversion the SHA-256 and
   byte counts match all three original archive files **exactly**. This
   makes the contents of these mirrored texts cryptographically tied to
