@@ -23,6 +23,7 @@ def require(ok, message):
 # as a legal review gate separate from the build/distribution hold.
 license_bytes = (root / "LICENSE").read_bytes()
 license_text = license_bytes.decode("utf-8", errors="strict")
+normalized_license = " ".join(license_text.split())
 license_blob = hashlib.sha1(
     f"blob {len(license_bytes)}\0".encode("ascii") + license_bytes
 ).hexdigest()
@@ -39,7 +40,7 @@ for required in (
     "Licensor: lxsdd",
     "Independently licensed third-party",
 ):
-    require(required in license_text, f"mandatory restricted-license term absent: {required}")
+    require(required in normalized_license, f"mandatory restricted-license term absent: {required}")
 
 expected_header = "path\tsubsong\tartist\tartists\ttitle\toriginal_title\tremixed_by\talbum\talbum_artist\ttrack_number\ttotal_tracks\tdisc_number\ttotal_discs\tdate\tgenre\tstyle\tbpm\tlabel\tcatalog_number\tduration_seconds\tisrc\tcodec\tbitrate\ttag_fingerprint\textra_metadata_json\tmetadata_vectors_json"
 require(expected_header.replace("\t", "\\t") in contract, "schema-v3 header changed")
