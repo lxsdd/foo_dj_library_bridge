@@ -121,6 +121,13 @@ jobs:
           ref: 31a35947a7527826c2199491692802e3ce3d8bd7
           path: external/sdk-template
           persist-credentials: false
+      - name: Checkout immutable owner-operated foobar installer transport only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pinned v7
+        with:
+          repository: lxsdd/dev-infrastructure-public
+          ref: 35369054c56f4c6ccb2f802944e9675852fd35ec
+          path: external/shared-host-runner
+          persist-credentials: false
       - uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # pinned v2
       - name: Bootstrap exact foobar2000 SDK and build with VS2022 toolset
         shell: pwsh
@@ -163,13 +170,14 @@ jobs:
               Remove-Item -LiteralPath $testRoot -Recurse -Force
             }
           }
-      - name: Real foobar2000 host/component smoke (${{ matrix.platform }})
-        uses: lxsdd/dev-infrastructure-public/.github/actions/foobar-host-smoke@6a9829ff7ba689d2ab3a1291db1734ad29d577c6
-        with:
-          architecture: ${{ matrix.platform }}
-          component-dll: out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll
-          profile-check-script: scripts/probe-foobar-media-library-ui.ps1
-          restart-profile-check: 'true'
+      - name: Real foobar2000 host, Media Library and CUE smoke (${{ matrix.platform }})
+        shell: pwsh
+        run: |
+          ./scripts/verify-bridge-host-with-pinned-installer.ps1 `
+            -Architecture '${{ matrix.platform }}' `
+            -ComponentDll 'out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll' `
+            -ProfileCheckScript 'scripts/probe-foobar-media-library-ui.ps1' `
+            -RestartProfileCheck 'true'
       - name: Upload DLL
         if: false # Private source-only qualification, never upload DLLs
         uses: actions/upload-artifact@v7
