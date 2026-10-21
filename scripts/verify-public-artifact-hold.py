@@ -125,3 +125,58 @@ _D_MUTATION["test-unreviewed-upload.yml"] = (
 if not _scan_publication_surface(_D_MUTATION, _D_EXPECTED):
     sys.exit("FAIL: an unreviewed binary upload bypassed the audit")
 print(f"PASS: {_D_DIR} workflow audit including new-workflow bypass regression")
+
+
+# Third-line guard: every workflow must remain byte-for-byte identical to
+# the reviewed source-only configuration. Searching only for upload actions
+# is insufficient: shell commands, reusable workflows, and YAML refactors
+# could otherwise bypass pattern matching. A legitimate workflow edit must
+# be re-reviewed and its Git blob pin updated, followed by exact-HEAD CI.
+# This draft-only gate is NOT active on main before an authorized merge.
+import hashlib as _hashlib
+
+_APPROVED_WORKFLOW_GIT_BLOBS = {
+    "build.yml": "2513530485077f6e94883bf275dfa53084657c20",
+    "candidate.yml": "1a8c7b17a396cdcc5d084583f19649f8c6dac6d5",
+    "public-pr-head-ci-recovery.yml": "c6c346346462b4636dea1833af85c36a59bf61e7",
+    "release-qualified.yml": "180745e2c3042e6cd6e4eef22660e0b89a35a344",
+}
+
+def _git_blob_sha1(_data):
+    _header = f"blob {len(_data)}\0".encode("ascii")
+    return _hashlib.sha1(_header + _data).hexdigest()
+
+def _check_reviewed_workflow_bytes(_payloads):
+    _errors = []
+    _actual_names = set(_payloads)
+    _expected_names = set(_APPROVED_WORKFLOW_GIT_BLOBS)
+    for _name in sorted(_expected_names - _actual_names):
+        _errors.append(f"missing reviewed workflow: {_name}")
+    for _name in sorted(_actual_names - _expected_names):
+        _errors.append(f"unreviewed workflow: {_name}")
+    for _name in sorted(_actual_names & _expected_names):
+        _actual = _git_blob_sha1(_payloads[_name])
+        if _actual != _APPROVED_WORKFLOW_GIT_BLOBS[_name]:
+            _errors.append(
+                f"{_name}: unreviewed workflow bytes (Git blob {_actual}; "
+                f"expected {_APPROVED_WORKFLOW_GIT_BLOBS[_name]})"
+            )
+    return _errors
+
+_WORKFLOW_BYTES = {p.name: p.read_bytes() for p in _D_DIR.iterdir()
+                   if p.suffix.lower() in (".yml", ".yaml")}
+_WORKFLOW_ERRORS = _check_reviewed_workflow_bytes(_WORKFLOW_BYTES)
+if _WORKFLOW_ERRORS:
+    sys.exit("FAIL: source-only workflow pin:\n- " + "\n- ".join(_WORKFLOW_ERRORS))
+
+# Regression: both an extra workflow and a changed existing workflow must
+# fail, even when the change contains no obvious upload-artifact action.
+_extra = dict(_WORKFLOW_BYTES)
+_extra["bypass.yml"] = b"name: extra\non: workflow_dispatch\njobs: {}\n"
+if not _check_reviewed_workflow_bytes(_extra):
+    sys.exit("FAIL: extra workflow bypassed exact workflow allowlist")
+_tampered = dict(_WORKFLOW_BYTES)
+_tampered["candidate.yml"] += b"# harmless-looking but unreviewed edit\n"
+if not _check_reviewed_workflow_bytes(_tampered):
+    sys.exit("FAIL: changed workflow bypassed reviewed Git blob pin")
+print("PASS: four reviewed workflows match Git blob pins; mutations rejected")
