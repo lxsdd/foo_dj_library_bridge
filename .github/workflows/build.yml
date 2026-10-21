@@ -46,6 +46,8 @@ jobs:
           python3 scripts/verify-embedded-flac-fixture.py "$fixture_dir/Synthetic Embedded.flac"
       - name: Static safety/contract audit
         run: python3 scripts/static_audit.py
+      - name: Enforce independent source-only publication hold
+        run: python3 scripts/verify-public-artifact-hold.py
       - name: Build pure contract tests with GCC
         run: g++ -std=c++20 -Wall -Wextra -Werror tests/contract_tests.cpp src/bridge_contract.cpp src/gzip_stored.cpp -o contract-tests
       - name: Run GCC contract tests
