@@ -103,6 +103,19 @@ try {
                 }
                 catch { throw "Payload row $($count+2) has invalid extra_metadata_json: $($_.Exception.Message)" }
                 if ($extra -isnot [System.Collections.IDictionary]) { throw "Payload row $($count+2) extra_metadata_json must be an object" }
+                # The original C++ producer emits a mapping of nonempty field
+                # names to ordered string arrays (never JSON scalars/objects).
+                foreach ($field in $extra.Keys) {
+                    if ($field -isnot [string] -or [string]::IsNullOrEmpty($field) -or
+                        $extra[$field] -isnot [System.Array]) {
+                        throw "Payload row $($count+2) extra_metadata_json must map names to arrays"
+                    }
+                    foreach ($value in $extra[$field]) {
+                        if ($value -isnot [string]) {
+                            throw "Payload row $($count+2) extra_metadata_json values must be strings"
+                        }
+                    }
+                }
                 if ($state.schema_version -eq '3') {
                     if ([string]::IsNullOrWhiteSpace($parts[25])) {
                         throw "Payload row $($count+2) has empty metadata_vectors_json; canonical [] expected"
@@ -124,6 +137,7 @@ try {
                     foreach ($entry in $vectors) {
                         if ($entry -isnot [System.Collections.IDictionary] -or
                             $entry['name'] -isnot [string] -or
+                            [string]::IsNullOrEmpty($entry['name']) -or
                             $entry['values'] -isnot [System.Array]) {
                             throw "Payload row $($count+2) metadata vector must contain string name and array values"
                         }
