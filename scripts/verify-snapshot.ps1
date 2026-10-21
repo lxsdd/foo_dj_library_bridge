@@ -3,6 +3,16 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
+# Windows PowerShell 5.1 does not implement ConvertFrom-Json -AsHashtable
+# or -NoEnumerate. Use the built-in .NET Framework JSON decoder there,
+# preserving dictionary and array validation without requiring pwsh 7.
+$legacyJsonReader = $null
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    Add-Type -AssemblyName System.Web.Extensions -ErrorAction Stop
+    $legacyJsonReader = [System.Web.Script.Serialization.JavaScriptSerializer]::new()
+    $legacyJsonReader.MaxJsonLength = 16 * 1024 * 1024
+}
+
 if (-not $BridgeDirectory) {
     $standard = Join-Path $env:APPDATA 'foobar2000-v2\foo_dj_library_bridge'
     if (Test-Path (Join-Path $standard 'bridge-state.tsv')) {
@@ -80,14 +90,29 @@ try {
                     }
                 }
                 if ([string]::IsNullOrWhiteSpace($parts[24])) { throw "Payload row $($count+2) has empty extra_metadata_json; canonical '{}' expected" }
-                try { $extra = ConvertFrom-Json -InputObject $parts[24] -AsHashtable -NoEnumerate -ErrorAction Stop }
+                try {
+                    if ($legacyJsonReader) {
+                        $extra = $legacyJsonReader.DeserializeObject($parts[24])
+                    } else {
+                        $extra = ConvertFrom-Json -InputObject $parts[24] -AsHashtable -NoEnumerate -ErrorAction Stop
+                    }
+                }
                 catch { throw "Payload row $($count+2) has invalid extra_metadata_json: $($_.Exception.Message)" }
                 if ($extra -isnot [System.Collections.IDictionary]) { throw "Payload row $($count+2) extra_metadata_json must be an object" }
                 if ($state.schema_version -eq '3') {
                     if ([string]::IsNullOrWhiteSpace($parts[25])) {
                         throw "Payload row $($count+2) has empty metadata_vectors_json; canonical [] expected"
                     }
-                    try { $vectors = ConvertFrom-Json -InputObject $parts[25] -AsHashtable -NoEnumerate -ErrorAction Stop }
+                    if (-not $parts[25].TrimStart().StartsWith('[')) {
+                        throw "Payload row $($count+2) metadata_vectors_json must be an array"
+                    }
+                    try {
+                        if ($legacyJsonReader) {
+                            $vectors = @($legacyJsonReader.DeserializeObject($parts[25]))
+                        } else {
+                            $vectors = ConvertFrom-Json -InputObject $parts[25] -AsHashtable -NoEnumerate -ErrorAction Stop
+                        }
+                    }
                     catch { throw "Payload row $($count+2) has invalid metadata_vectors_json: $($_.Exception.Message)" }
                     if ($vectors -isnot [System.Array]) {
                         throw "Payload row $($count+2) metadata_vectors_json must be an array"
