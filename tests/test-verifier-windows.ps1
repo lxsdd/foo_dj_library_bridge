@@ -52,6 +52,31 @@ function New-SyntheticBridge {
     return $directory
 }
 
+# Repack a fully-formed synthetic gzip after deliberate byte-level mutation.
+# Never mutate or read music files: only our generated runner-temp fixture.
+function Set-SyntheticGzipPayload {
+    param([string]$Directory, [byte[]]$Bytes)
+    $p = Join-Path $Directory 'digital-items.tsv.gz'
+    $fs = [System.IO.File]::Create($p)
+    try {
+        $gz = [System.IO.Compression.GZipStream]::new($fs, [System.IO.Compression.CompressionMode]::Compress)
+        try { $gz.Write($Bytes, 0, $Bytes.Length) } finally { $gz.Dispose() }
+    } finally { $fs.Dispose() }
+}
+
+function Get-SyntheticGzipPayload {
+    param([string]$Directory)
+    $p = Join-Path $Directory 'digital-items.tsv.gz'
+    $fs = [System.IO.File]::OpenRead($p)
+    try {
+        $gz = [System.IO.Compression.GZipStream]::new($fs, [System.IO.Compression.CompressionMode]::Decompress)
+        try {
+            $stream = [System.IO.MemoryStream]::new()
+            try { $gz.CopyTo($stream); return $stream.ToArray() } finally { $stream.Dispose() }
+        } finally { $gz.Dispose() }
+    } finally { $fs.Dispose() }
+}
+
 New-Item -ItemType Directory -Path $work | Out-Null
 try {
     foreach ($schema in @(2,3)) {
