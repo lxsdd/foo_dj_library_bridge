@@ -1,87 +1,91 @@
-# Proposed licensing — NOT YET AN OPERATIVE LICENSE
+# Licensing decision — MIT + Commons Clause v1.0 (approved 2026-10-21)
 
-**Status: proposal / owner review only (2026-10-21).**
-**This document does not grant any reuse, modification, redistribution or commercial rights.**
-There is deliberately **no root `LICENSE`**. Do not interpret a GitHub-public
-repository, a Draft PR or this proposal as a copyright grant. No binary
-distribution, package, release or merge is authorized by this proposal.
+**Status: owner-approved for the Bridge-owned code on this Draft branch.**
+The original nonbinding proposal was accepted with public copyright
+holder / licensor **`lxsdd`**. The operative grant is now the complete
+combined text in [`../LICENSE`](../LICENSE), not this explanatory document.
+The former proposed file path is preserved so previously shared project
+handoff links remain valid.
 
-## Owner's stated intent
+## Selected grant
 
-The project owner has described developing `foo_dj_library_bridge` from the
-ground up with an AI assistant, prefers **free access, use and free sharing**,
-including for DJs who earn money from live performances, and wants to prevent
-third parties from **selling the Bridge itself or a substantially equivalent
-renamed/repackaged paid plugin or paid Bridge-as-a-service**.
+- **Base:** complete MIT license text with `Copyright (c) 2026 lxsdd`.
+- **Additional condition:** the complete, unchanged Commons Clause License
+  Condition v1.0 with
+  `Software: foo_dj_library_bridge`,
+  `License: MIT`, `Licensor: lxsdd`.
+- **Software scope:** original Bridge-owned source, authored scripts,
+  documentation and compiled Bridge component to the extent licensable by
+  the owner. This license does **not** replace the independent permissions
+  and notices for foobar2000 player/installer, SDK, pfc, libPPUI, GitHub
+  tools or third-party materials.
+- **License classification:** *source-available*, **not OSI-approved open
+  source**. Do **not** use a plain MIT-only badge or claim
+  `SPDX-License-Identifier: MIT` alone fully describes the combined grant.
 
-The owner has not approved a final legal text, public licensor name or a
-`LICENSE` file yet. AI-assistance is not by itself proof of ownership of every
-fragment; the provenance/third-party inventory is a distinct release gate.
+Official complete standard texts:
+- MIT: <https://opensource.org/license/mit>
+- Commons Clause v1.0: <https://commonsclause.com/>
 
-## Candidate: MIT License + Commons Clause License Condition v1.0
+## Owner's intended use and the actual condition
 
-**Not plain MIT.** The proposed operative text, *only after owner approval*,
-would contain both complete, unchanged standard documents:
+The owner developed the Bridge project with AI assistance and chose this
+combination to permit **free access, private use, modification and sharing**,
+including by DJs who are paid for performing at events, without permitting
+third parties simply to rebrand/repackage and **sell the Bridge itself**.
 
-1. MIT base license: <https://opensource.org/license/mit>
-2. Commons Clause License Condition v1.0:
-   <https://commonsclause.com/>
-3. Fill Commons Clause variables as:
-   - **Software:** `foo_dj_library_bridge` — Bridge-owned project source
-     and compiled component, **excluding third-party SDK, pfc, libPPUI,
-     foobar2000 player/installer, GitHub Actions, and independently licensed
-     materials**.
-   - **License:** MIT
-   - **Licensor:** **[owner's public legal name / authorized entity — TO BE APPROVED]**
-4. Fill MIT copyright line as **2026 [verified copyright owner / entity — TO
-   BE APPROVED]**. Do not infer the user's legal name from Git account details
-   or commit author metadata.
+Commons Clause defines prohibited **Sell** as offering a product or service
+for a fee whose value is entirely or substantially derived from the
+software's functionality. This includes substantially Bridge-derived paid
+hosting or consulting/support; therefore **not all paid services can be
+promised as allowed**. Materially different products adding substantial
+independent functionality may be offered commercially; the clause is **not**
+a blanket ban on all business activity involving Bridge.
 
-**The result is source-available, not OSI-approved open source.** Commons
-Clause is a restrictive additional condition and must accompany the MIT notice
-in every permitted redistribution. Do not identify this combination as
-`SPDX-License-Identifier: MIT` without the additional condition, and do not
-use GitHub's plain-MIT license badge.
+Professional DJ performances using the free Bridge as an aid are different
+from selling the Bridge itself. Nonetheless, each borderline commercial
+service must be judged against the actual combined license text, not an
+oversimplified slogan. This interpretation is informational, not a legal
+opinion or assurance of any particular jurisdiction's enforcement.
 
-## Expected interpretation; edge cases needing particular care
+## Public pseudonym and rights documentation
 
-| Example | Candidate rule / limitation |
-| --- | --- |
-| A paid professional DJ runs Bridge for their own music library | Normally permitted: they are paid for DJ performance, not for selling Bridge functionality |
-| Hobbyists build and share modified Bridge versions for free | Generally permitted with all requisite notices |
-| Someone rebrands and sells the unmodified or trivially changed Bridge plugin | Prohibited under the Commons Clause definition of selling substantially the same functionality |
-| Paid cloud hosting, paid setup, consulting or support whose value derives substantially from Bridge | May be prohibited: Commons Clause explicitly mentions hosting and consulting/support; do **not** promise these are automatically allowed |
-| A materially different paid DJ application includes Bridge among substantial independent features | May be permissible where the paid product's value does *not* derive entirely or substantially from Bridge; this clause is **not** a universal ban on earning money from all software that uses Bridge |
-| Bundle contains foobar2000 player files or SDK code | **Outside Bridge-owner's permission.** Respect those components' own licenses, packaging and attribution restrictions |
+`lxsdd` is the owner's chosen public attribution/pseudonym. German
+copyright law recognizes attribution under a chosen designation (UrhG
+section 13) and addresses pseudonymous works (section 66).
+The owner should privately retain evidence connecting this public handle
+to the entitled individual or legal entity for possible enforcement.
+It is not necessary to publish their civil name merely to use an alias.
 
-The words *entirely or substantially* create a factual, potentially disputed
-boundary. There is no widely recognized `MIT-NonCommercial` license that is
-both MIT and bans selling. A custom stricter no-resale/no-fees license could
-more closely match particular edge cases but should be drafted/reviewed by
-qualified legal counsel instead of modifying standard text informally.
+The owner's assertion that the Bridge was independently developed with
+AI assistance and the Git commit provenance for its seven original
+production files are supporting project history, **not** exhaustive proof
+that no protected fragment from a third party exists. No AI model or
+hosting provider is listed as co-author merely because it assisted with
+writing code. Relevant independent third-party material remains under
+its original permissions.
 
-## Mandatory before creating LICENSE or enabling distribution
+See [third-party inventory](THIRD-PARTY-NOTICES-INVENTORY.md)
+and independent source-provenance notes on safety Draft #9.
 
-- Owner expressly approves the MIT **plus** Commons Clause text and the
-  precise named licensor / copyright notice. A general conversation about
-  intentions is **not** approval of missing legal fields.
-- Confirm independent licensing rights and third-party exclusions for all
-  seven original Bridge production files and later contributions. Git
-  authorship and AI-generated output alone do not independently establish
-  every copyright/third-party clearance.
-- Preserve foobar2000 SDK, pfc, libPPUI license texts/credits; do **not**
-  substitute a Bridge license for them or imply affiliation with Peter
-  Pawlowski / foobar2000.
-- Independently review any installer mirrors under the foobar2000 **player**
-  license, separate from component/SDK licensing; never repackage extracted
-  player executables with a plugin.
-- Obtain the owner's explicit individual permission before merging or
-  enabling any candidate, upload, tag, release or DLL distribution workflow.
-- Record exact green CI SHA and private-device, real-library read-only final
-  acceptance independently. Synthetic 54,129 tracks are not the owner's
-  actual collection.
+## Not a merge or release authorization
 
-**External primary sources:** MIT text at OSI; Commons Clause original text
-and FAQ at commonsclause.com; Open Source Definition at
-<https://opensource.org/osd>. This is a technical licensing preparation
-document, not a substitute for legal advice or a signed ownership assessment.
+The owner **approved this licensing decision**. This is strictly different
+from giving approval to merge PRs, publish DLLs, tag releases, or install
+the component on their personal Windows/DJ machine.
+
+- The license is present **only on the unmerged Draft integration branch**;
+  the repository default branch has not been changed.
+- Exact-head green isolated foobar2000 Win32/x64 CI and synthetic
+  54,129-item producer/reader tests cannot substitute for private-device
+  safety acceptance.
+- Before distribution, recheck third-party code provenance/notice
+  obligations, preserve separate foobar licenses, and obtain the owner's
+  **separate explicit approval** for each promotion step.
+- Keep all manual candidate/package/upload/release workflows blocked,
+  particularly the historical publish-capable workflows still present on
+  `main`.
+
+References: <https://www.gesetze-im-internet.de/urhg/__13.html>,
+<https://www.gesetze-im-internet.de/urhg/__66.html>,
+<https://opensource.org/osd>. Not legal advice.
