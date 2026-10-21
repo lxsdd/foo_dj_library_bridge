@@ -76,7 +76,34 @@ require("$ExpectedArchiveHash = 'd4c55077336fae81bf8df0259b5b2748fa45ea84132c656
         "SDK upstream archive evidence pin missing")
 require("Invoke-WebRequest" not in bootstrap and "foobar2000_component_template.git" in bootstrap,
         "Bridge SDK bootstrap must use the pinned owner-controlled Git source, not vendor archive HTTP")
-require("[string]$PlatformToolset = 'v143'" in build, "VS2022 v143 CI toolset pin missing")
+require("[ValidateSet('v143','v145')] [string]$PlatformToolset = 'v143'" in build,
+        "v143 default with explicit reviewed v145 toolset option missing")
+local_build = (root / "scripts" / "local-acceptance-build.ps1").read_text(encoding="utf-8")
+workflow_source = (root / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
+require("[ValidateSet('Auto','v143','v145')]" in local_build,
+        "private SHA-pinned build must accept only vetted toolsets")
+require("if ($hasV143) { 'v143' } else { 'v145' }" in local_build,
+        "private build toolset-selection fail-safe missing")
+require("MSVC C++ $selectedToolset x86/x64" in local_build,
+        "per-architecture compiler presence requirement removed")
+require("-PlatformToolset $selectedToolset" in local_build,
+        "private dual-architecture compile does not enforce selected toolset")
+require("  windows-build:\n" in workflow_source and
+        "  windows-build-v145:\n" in workflow_source,
+        "protected v143 windows-build and independent v145 real host jobs required")
+host_v143 = workflow_source.split("  windows-build:\n", 1)[1].split("  windows-build-v145:\n", 1)[0]
+host_v145 = workflow_source.split("  windows-build-v145:\n", 1)[1].split("  package-component:\n", 1)[0]
+require("    name:" not in host_v143.split("    steps:\n", 1)[0],
+        "protected v143 host job naming must remain unchanged")
+for family, host in (("v143", host_v143), ("v145", host_v145)):
+    require("platform: [Win32, x64]" in host and
+            f"-Toolset '{family}'" in host and
+            f"-PlatformToolset '{family}'" in host and
+            f"/p:PlatformToolset='{family}'" in host and
+            f"-SourceSha $sourceSha -OutputDirectory $root -Toolset '{family}'" in host,
+            f"real host and private SHA build must both enforce {family} on Win32/x64")
+require("uses: actions/upload-artifact@" not in host_v145,
+        "new v145 qualification must never publish public binary artifacts")
 require('GENERIC_WRITE' in publisher and 'FlushFileBuffers' in publisher, "durable temp-file flush must use a writable handle")
 require('MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH' in publisher, "atomic write-through replace missing")
 require('complete ? 1 : 0' in publisher, "state complete marker missing")
@@ -112,5 +139,5 @@ print("- profile-local per-instance storage via core_api::get_profile_path()")
 print("- source metadata in schema-v3 state")
 print("- schema-v3 payload preserves schema-v2 prefix and appends exact metadata vectors")
 print("- arbitrary metadata enumeration without core-field duplication")
-print("- C++20 / target v81 / VS2022 v143 build path")
+print("- C++20 / target v81 / independently gated VS2022 v143 and VS2026 v145 host build paths")
 print("- atomic complete=0 -> payload -> complete=1 publication")

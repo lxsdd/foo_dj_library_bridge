@@ -3,7 +3,8 @@
 param(
     [string]$SourceSha = '',
     [string]$OutputDirectory = '',
-    [switch]$PreflightOnly
+    [switch]$PreflightOnly,
+    [ValidateSet('Auto','v143','v145')][string]$Toolset = 'Auto'
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -47,9 +48,11 @@ if (-not $gitPath) {
         }
     }
 }
-# The source-pinned solution specifies /p:PlatformToolset=v143, not just any MSBuild.
-# v143 MSVC versions use the 14.3x and 14.4x toolset directories.
+# Enumerate only two explicitly reviewed C++ toolset families. Both must
+# expose real x86 and x64 cl.exe binaries; do not infer this from MSBuild.
+# v143: 14.3x/14.4x; v145 (VS2026): 14.5x.
 $hasV143 = $false
+$hasV145 = $false
 $detectedMsvcVersions = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($root in $vsRoots) {
     $toolDir = Join-Path $root 'VC\Tools\MSVC'
@@ -57,24 +60,31 @@ foreach ($root in $vsRoots) {
     $toolsets = @(Get-ChildItem -LiteralPath $toolDir -Directory -ErrorAction SilentlyContinue)
     foreach ($tool in $toolsets) {
         [void]$detectedMsvcVersions.Add($tool.Name)
-        if ($tool.Name -match '^14\.(3[0-9]|4[0-9])\.' -and
+        $bothArchitectures = (
             (Test-Path -LiteralPath (Join-Path $tool.FullName 'bin\Hostx64\x64\cl.exe') -PathType Leaf) -and
-            (Test-Path -LiteralPath (Join-Path $tool.FullName 'bin\Hostx64\x86\cl.exe') -PathType Leaf)) {
-            $hasV143 = $true
-            break
-        }
+            (Test-Path -LiteralPath (Join-Path $tool.FullName 'bin\Hostx64\x86\cl.exe') -PathType Leaf))
+        if (-not $bothArchitectures) { continue }
+        if ($tool.Name -match '^14\.(3[0-9]|4[0-9])\.') { $hasV143 = $true }
+        if ($tool.Name -match '^14\.5[0-9]\.') { $hasV145 = $true }
     }
-    if ($hasV143) { break }
 }
 # Log compiler version numbers only; do not expose workstation paths.
 $installedMsvc = @($detectedMsvcVersions | Sort-Object)
 Write-Host ('BRIDGE_PREFLIGHT_MSVC_VERSIONS=' + $(if ($installedMsvc.Count) { $installedMsvc -join ',' } else { 'NONE' }))
 Write-Host ('BRIDGE_PREFLIGHT_MSBUILD=' + $(if ($msbuildPath) { 'FOUND' } else { 'MISSING' }))
 Write-Host ('BRIDGE_PREFLIGHT_V143=' + $(if ($hasV143) { 'FOUND' } else { 'MISSING' }))
+Write-Host ('BRIDGE_PREFLIGHT_V145=' + $(if ($hasV145) { 'FOUND' } else { 'MISSING' }))
+$selectedToolset = if ($Toolset -eq 'Auto') {
+    if ($hasV143) { 'v143' } else { 'v145' }
+} else { $Toolset }
+Write-Host "BRIDGE_PREFLIGHT_SELECTED_TOOLSET=$selectedToolset"
 Write-Host ('BRIDGE_PREFLIGHT_GIT=' + $(if ($gitPath) { 'FOUND' } else { 'MISSING' }))
 $missing = @()
 if (-not $msbuildPath) { $missing += 'MSBuild (VS2022/VS2026)' }
-if (-not $hasV143) { $missing += 'MSVC C++ v143 x86/x64' }
+if (($selectedToolset -eq 'v143' -and -not $hasV143) -or
+    ($selectedToolset -eq 'v145' -and -not $hasV145)) {
+    $missing += "MSVC C++ $selectedToolset x86/x64"
+}
 if (-not $gitPath) { $missing += 'Git for Windows (temporary SHA-bound source checkout)' }
 if ($missing.Count -gt 0) {
     throw ('Preflight missing: ' + ($missing -join ', ') +
@@ -122,9 +132,9 @@ try {
         }
     }
     $build = Join-Path $root 'scripts\build.ps1'
-    & $build -Platform Win32 -Configuration Release -PlatformToolset v143
+    & $build -Platform Win32 -Configuration Release -PlatformToolset $selectedToolset
     if ($LASTEXITCODE -ne 0) { throw 'Win32 build failed.' }
-    & $build -Platform x64 -Configuration Release -PlatformToolset v143
+    & $build -Platform x64 -Configuration Release -PlatformToolset $selectedToolset
     if ($LASTEXITCODE -ne 0) { throw 'x64 build failed.' }
     $dll32 = Join-Path $root 'out\Win32\Release\foo_dj_library_bridge.dll'
     $dll64 = Join-Path $root 'out\x64\Release\foo_dj_library_bridge.dll'
@@ -157,7 +167,7 @@ try {
     Copy-Item -LiteralPath $file,$manifest,$sums -Destination $destination
     $copiedHash = (Get-FileHash -LiteralPath (Join-Path $destination (Split-Path -Leaf $file)) -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($copiedHash -ne $hash) { throw 'Local copy checksum mismatch.' }
-    Write-Host "LOCAL_ACCEPTANCE_BUILD=PASS PATH=$destination SOURCE_SHA=$SourceSha SHA256=$hash"
+    Write-Host "LOCAL_ACCEPTANCE_BUILD=PASS PATH=$destination SOURCE_SHA=$SourceSha SHA256=$hash TOOLSET=$selectedToolset"
     Write-Host 'No installation, tag/database/music writes or public GitHub binary artifacts.'
 } finally {
     if (Test-Path -LiteralPath $temp) {

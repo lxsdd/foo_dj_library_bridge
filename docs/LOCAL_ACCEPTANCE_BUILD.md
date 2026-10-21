@@ -26,8 +26,10 @@ DLL oder anderen Artefakte nach GitHub hoch.
   mit SDK-Subtree `2ba8caeb73f72633ad7f60ee5f72ed8074a0eb17`
   holt. Dies prüft den **Git-Quellbaum**, nicht die Byteidentität
   des offiziellen Hersteller-`.7z`-Archivs.
-- Beide DLLs werden mit VS2022-Toolset `v143` gebaut und anhand
-  ihrer tatsächlichen PE-Architektur geprüft. Die private Komponente
+- Beide DLLs werden aus **demselben exakt gepinnten Git-Quellstand** mit
+  dem ausdrücklich ausgewählten MSVC-Toolset gebaut: `v143` (VS2022) oder
+  nach separater Win32/x64-Hostqualifikation `v145` (VS2026, 14.5x).
+  Die tatsächliche PE-Architektur wird in beiden Fällen geprüft. Die private Komponente
   wird ausschließlich in einen explizit angegebenen **neuen**
   Zielordner kopiert, inklusive Build-Manifest und SHA-256-Prüfsummen.
   Bereits existierende Zielordner werden **nicht überschrieben**.
@@ -37,17 +39,22 @@ DLL oder anderen Artefakte nach GitHub hoch.
 ## Voraussetzungen – erst später auf dem eigenen Windows-Rechner
 
 - Windows 10/11 und **PowerShell 7.2+** (`pwsh.exe`).
-- Visual Studio 2022/2026 Build Tools mit **MSVC v143 für Win32/x64**
-  und `MSBuild`; `vswhere` und der bereits gefundene MSBuild-Pfad werden für
-  die unabhängige Erkennung von Compiler und Build-System genutzt.
-- Der Preflight meldet `BRIDGE_PREFLIGHT_MSVC_VERSIONS`, um eine installierte
-  VS2026-Standardversion 14.5x (**v145**) von einem kompatiblen 14.3x/14.4x
-  (**v143**) zu unterscheiden. Bei weiterhin fehlendem v143 darf keine
-  andere Compiler-Version stillschweigend als kompatibel gelten. In diesem
-  Fall kann der Eigentümer bei Bedarf im **Visual Studio Installer → Ändern →
-  Einzelne Komponenten** gezielt `MSVC v143 – VS 2022 C++ x64/x86 build tools`
-  nachinstallieren; **kein automatisches Setup oder Lizenzakzeptieren**.
-  Ein solcher Eingriff ist optional bis zur lokalen Geräteendprüfung.
+- Visual Studio 2022/2026 Build Tools, `MSBuild` und ein tatsächlich
+  vorhandenes **MSVC v143 (14.3x/14.4x) oder v145 (14.5x)** mit `cl.exe`
+  für **beide Architekturen**, x86 und x64. `vswhere` und der erkannte
+  MSBuild-Pfad werden getrennt ausgewertet.
+- `BRIDGE_PREFLIGHT_MSVC_VERSIONS`, `BRIDGE_PREFLIGHT_V143`,
+  `BRIDGE_PREFLIGHT_V145` und `BRIDGE_PREFLIGHT_SELECTED_TOOLSET` machen die
+  Entscheidung nachvollziehbar. Die Wahl ist auf `Auto`, `v143` und `v145`
+  beschränkt; `Auto` bevorzugt den bisher qualifizierten v143, andernfalls
+  v145. Ein nicht gefundenes Toolset bleibt **FAIL**.
+- `v145` ist kein pauschaler Ersatz für alle Compiler: sein Einsatz bei
+  der Bridge setzt bestandene reale foobar-Win32/x64-Hosttests samt CUE,
+  Original-Readern und privatem SHA-Build in GitHub voraus. Ein grüner
+  Preflight allein ist **keine** Geräte- oder Sicherheitsabnahme.
+- Eine zusätzliche v143-Installation ist für einen nachgewiesen qualifizierten
+  v145-Build **nicht erforderlich**. Es gibt weiterhin keinerlei automatische
+  Installation oder Annahme von Microsoft-Vertragsbedingungen.
 - **Git for Windows** sowie HTTPS-Zugriff auf die beiden genannten
   GitHub-Repositories und ausreichend temporärer Speicher.
 - Eine erfolgreich mit genau dieser Git-SHA qualifizierte Bridge-Version.
@@ -61,8 +68,9 @@ DLL oder anderen Artefakte nach GitHub hoch.
 $sha = '<QUALIFIZIERTE_40_STELLIGE_GIT_SHA>'
 $helper = Join-Path $env:TEMP 'bridge-local-acceptance-build.ps1'
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/lxsdd/foo_dj_library_bridge/$sha/scripts/local-acceptance-build.ps1" -OutFile $helper
-pwsh -NoProfile -File $helper -PreflightOnly
-pwsh -NoProfile -File $helper -SourceSha $sha -OutputDirectory 'C:\Temp\BridgePrivateAcceptance'
+pwsh -NoProfile -File $helper -PreflightOnly -Toolset v145
+# Erst nach erfolgreicher exakter v145-CI-Qualifikation und Gerätefreigabe:
+pwsh -NoProfile -File $helper -SourceSha $sha -Toolset v145 -OutputDirectory 'C:\Temp\BridgePrivateAcceptance'
 ```
 
 Keine Freigabe zur Weitergabe der erstellten Dateien an Dritte.
@@ -82,8 +90,9 @@ Audio-/Datenbank-Sicherheitsinvarianten.
 - Ein grüner GitHub-Runner beweist **nicht** die Verfügbarkeit der
   lokalen MSVC/PowerShell/Git-Werkzeuge oder tatsächliche Wiedergabe
   auf dem persönlichen Rechner.
-- Bei fehlenden Tools/HTTPS bleibt der private Endabnahme-Build
-  blockiert. Ohne ausdrückliche Gerätefreigabe wird nichts dort
+- Bei fehlenden tatsächlich qualifizierten Tools/HTTPS bleibt der
+  private Endabnahme-Build blockiert. Eine erkannte v145-Version darf niemals
+  einen roten Win32/x64-CI-Hosttest übergehen. Ohne ausdrückliche Gerätefreigabe wird nichts dort
   installiert oder verändert.
 - Öffentliche Binary-Releases bleiben nach unserer dauerhaften
   Freigaberegel bis zur unabhängigen privaten Endabnahme,
