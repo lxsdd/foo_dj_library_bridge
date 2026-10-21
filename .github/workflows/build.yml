@@ -102,12 +102,6 @@ jobs:
       - name: Independently verify cached/downloaded official SDK before any compilation
         shell: pwsh
         run: ./scripts/bootstrap-sdk.ps1
-      - name: Save verified vendor SDK archive for future same-repository builds
-        if: steps.sdk-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4 immutable
-        with:
-          path: external/SDK-2026-09-17.7z
-          key: foobar-sdk-win-2026-09-17-sha256-24fa95ed66b42624f593fd4b94c5efb08ae81dfebb92b79fe69c8cd170961e48
       - name: Compile exact SDK Bridge with VS2022 toolset
         shell: pwsh
         run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset v143
