@@ -1,5 +1,16 @@
 # foo_dj_library_bridge release procedure
 
+> **ON HOLD — 2026-10-21. DO NOT DISPATCH A CANDIDATE OR RELEASE.**
+> This document preserves the *future* promotion design only.
+> Independent Draft PR #9 disables the component DLL uploads, the package
+> job, and the manual release job. Those changes are **not on main** until
+> the repository owner explicitly approves and merges them. The older
+> `main` workflows can still publish binaries on non-PR triggers.
+> Do not trigger them while rights/notice, exact-head Windows qualification,
+> private end acceptance and explicit merge/release approvals remain open.
+> See `docs/RELEASE-GATES-AND-PROVENANCE.md` for the authoritative
+> current gate state.
+
 GitHub is the canonical source and build authority. A release is promoted from a qualified candidate; it is never rebuilt.
 
 ## Version source
@@ -8,7 +19,7 @@ GitHub is the canonical source and build authority. A release is promoted from a
 
 ## Candidate qualification
 
-Run **foobar bridge candidate** manually from `main`.
+**Only after all release gates are cleared and the owner authorizes it:** run **foobar bridge candidate** manually from an approved `main` commit.
 
 The reusable build workflow:
 
@@ -37,7 +48,7 @@ Use the exact candidate artifact for any real foobar2000 runtime qualification. 
 
 ## Release promotion
 
-Run **Release qualified foobar bridge candidate** and provide the successful candidate run ID.
+**Only after a separate explicit release authorization:** run **Release qualified foobar bridge candidate** and provide the successful candidate run ID.
 
 The workflow verifies that the candidate:
 
