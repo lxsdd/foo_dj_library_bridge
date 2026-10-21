@@ -95,12 +95,15 @@ libPPUI, foobar2000 player, or other separately licensed materials.
 Owner rights to relicense third-party code fragments and the correct
 attribution/notice contents still require independent release review.
 
-**Do not dispatch candidate, package or manual release workflows from `main`.**
-The protected `main` still has historical publish-capable workflows;
-source-only upload/package/release guards have not been merged there.
-Even a successful full CI does not approve merging, tagging, release,
-publishing DLLs or installing on the owner personal computer.
+**Source-only PR integration may proceed autonomously under the owner's
+standing project authorization**, provided exact-HEAD CI, licensing,
+branch protection, third-party notice and fail-closed publishing gates
+are satisfied. See the [autonomous promotion safety policy](docs/AUTONOMOUS-PROMOTION-POLICY.md).
+Historical `main` candidate and manual release workflows must **not**
+be dispatched until protected by the source-only gate.
 
-The historical steps in [RELEASE.md](RELEASE.md) are suspended pending
-separate owner approvals, complete notices, private-device read-only
-acceptance and reviewed exact-SHA promotion.
+The historical steps in [RELEASE.md](RELEASE.md) remain suspended for
+DLL packages, tags, public releases and private-device installation.
+Publication requires actual private DJ-device read-only acceptance,
+complete notices, reviewed exact-SHA promotion and all other release
+gates; the standing authorization does not waive any requirement.
