@@ -77,10 +77,33 @@ For another/portable profile:
 
 RC2 remains the last real-Windows-qualified profile-local/multi-instance baseline: a portable 1,345-item profile and the standard 54,129-item profile coexist independently, and DJ Library can switch between them without cross-overwrite.
 
-## GitHub candidate and release flow
+## Current source-only hold and future release design
 
-GitHub is the canonical build authority. The workflow builds and tests both Win32 and x64, verifies the PE machine architecture, and packages one combined foobar2000 component with the Win32 DLL in the archive root and the x64 DLL under `x64/`.
+**The build and release workflows described below are NOT currently enabled
+for component upload, packaging, or release.** Independent Draft PR #9
+disables binary uploads, packaging and the manual release job, pending
+component-source provenance, complete SDK notices, private-device acceptance
+and explicit approval of each merge/release by the repository owner.
+The safety changes are not effective on the protected `main` branch until
+an explicitly authorized merge. Do **not** dispatch the older `main`
+candidate or release workflows or use non-PR build triggers.
 
-A manually dispatched candidate run produces an immutable `foo_dj_library_bridge-component-<commit>` Actions artifact. `VERSION` is the canonical package/release version source.
+Ordinary Draft PR builds exercise read-only Linux contracts and Windows
+compilation. A separate Windows toolchain preflight now checks MSBuild,
+v143 for Win32/x64 and 7-Zip without downloading the SDK; it is **not**
+a substitute for compiling/loading the component. The exact pinned
+foobar2000 SDK is `2026-09-17`; if `www.foobar2000.org` refuses
+Connections on hosted runners, native Win32/x64 and host qualification
+must remain **unverified** at that HEAD even if source-only jobs succeed.
 
-Final release promotion accepts only a successful manually dispatched candidate from `main`, verifies the manifest, commit binding, package version, SHA-256 and component layout, then creates tag `v<VERSION>` and publishes those exact bytes without rebuilding.
+**Intended future process, only after owner rights and release clearance:**
+GitHub builds both Windows architectures from one reviewed, SHA-qualified
+source commit, checks PE machine types, and creates one component containing
+the Win32 DLL in the archive root and the x64 DLL under `x64/`.
+`VERSION` remains the version source. An explicitly approved release
+would verify its exact candidate checksum/manifest and promote those
+unchanged bytes rather than rebuilding. No public artifact or tag is
+authorized by a passing test alone.
+
+See [release gates and provenance](docs/RELEASE-GATES-AND-PROVENANCE.md)
+and [private acceptance procedure](docs/LOCAL_ACCEPTANCE_BUILD.md).
