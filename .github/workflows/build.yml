@@ -23,7 +23,7 @@ jobs:
   contract-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Static safety/contract audit
         run: python3 scripts/static_audit.py
       - name: Enforce public artifact and release licensing hold
@@ -60,8 +60,8 @@ jobs:
       matrix:
         platform: [Win32, x64]
     steps:
-      - uses: actions/checkout@v7
-      - uses: microsoft/setup-msbuild@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
       - name: Bootstrap exact foobar2000 SDK and build with VS2022 toolset
         shell: pwsh
         run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset v143
@@ -103,7 +103,7 @@ jobs:
 
       - name: Upload DLL
         if: false # Temporary rights gate: build and test only
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7 (disabled)
         with:
           name: foo_dj_library_bridge-${{ matrix.platform }}
           path: out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll
@@ -118,14 +118,14 @@ jobs:
       - windows-build
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Download Win32 DLL
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8 (disabled)
         with:
           name: foo_dj_library_bridge-Win32
           path: candidate-input/Win32
       - name: Download x64 DLL
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8 (disabled)
         with:
           name: foo_dj_library_bridge-x64
           path: candidate-input/x64
@@ -141,7 +141,7 @@ jobs:
             -Commit '${{ github.sha }}'
       - name: Upload qualified component candidate
         if: false # Explicit second-line artifact block
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7 (disabled)
         with:
           name: foo_dj_library_bridge-component-${{ github.sha }}
           path: |
