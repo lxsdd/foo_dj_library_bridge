@@ -5,11 +5,12 @@
 > publish-capable and are NOT yet covered by unmerged Draft guards.
 > **Do not dispatch candidate/package/release workflows, merge Drafts,
 > create tags or distribute DLLs.** Green synthetic host CI is not
-> an owner release approval. The proposed MIT + Commons Clause v1.0
-> license is nonbinding and the repo has no operative root `LICENSE`.
-> Rights and exact licensor/copyright notice, third-party notices,
-> personal device read-only acceptance and each individual publication
-> action all require explicit owner clearance.
+> an owner release approval. The owner-approved
+> [MIT + Commons Clause v1.0](LICENSE) applies only to Bridge-owned
+> source with public licensor `lxsdd`; it does not approve DLL
+> distribution. Independent code provenance and third-party notices,
+> personal-device read-only acceptance and each individual publication
+> action still require explicit owner clearance.
 > The procedures below are **historical design notes only** until
 > formally requalified and separately approved.
 
