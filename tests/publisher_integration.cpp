@@ -219,6 +219,49 @@ int wmain(int argc, wchar_t** argv) {
                       << elapsed << std::endl;
             recovered.shutdown();
         }
+        // OrdinalIgnoreCase is part of both production C# consumers' identity
+        // contract. Two CUE subsongs of the same path are valid, but two
+        // byte-distinct case variants with the same subsong are not.
+        // Everything remains under the disposable test root.
+        {
+            const auto ambiguousDir = root / "case-identity";
+            djbridge::Record base = make_record(66, "CUE subsong A");
+            base.path = "C:\\SyntheticCI\\CaseTrack.FLAC";
+            base.subsong = 0;
+            base.tag_fingerprint = djbridge::fingerprint_for(base);
+            auto differentSubsong = base;
+            differentSubsong.subsong = 1;
+            differentSubsong.title = "CUE subsong B";
+            differentSubsong.tag_fingerprint = djbridge::fingerprint_for(differentSubsong);
+            auto duplicate = base;
+            duplicate.path = "c:\\syntheticci\\casetrack.flac";
+            duplicate.tag_fingerprint = djbridge::fingerprint_for(duplicate);
+            djbridge::Publisher guarded;
+            require(guarded.configure(ambiguousDir, source), "Identity test publisher unavailable");
+            guarded.request({base, differentSubsong});
+            capture(ambiguousDir, stages / "identity-valid-subsongs", 1, 2);
+            const auto oldGzipBytes = fs::file_size(ambiguousDir / "digital-items.tsv.gz");
+            guarded.request({base, duplicate});
+            const auto deadline = std::chrono::steady_clock::now() + 20s;
+            for (;;) {
+                const auto [marker, count] = read_state(ambiguousDir / "bridge-state.tsv");
+                if (marker == "2:0" && count == "2" &&
+                    fs::is_regular_file(ambiguousDir / "bridge-error.txt")) break;
+                if (std::chrono::steady_clock::now() >= deadline) {
+                    throw std::runtime_error("Case-insensitive duplicate was not rejected");
+                }
+                std::this_thread::sleep_for(75ms);
+            }
+            require(fs::file_size(ambiguousDir / "digital-items.tsv.gz") == oldGzipBytes,
+                    "Duplicate identity overwrote last good gzip");
+            std::cout << "PUBLISHER_CASE_COLLISION_FAIL_CLOSED=PASS" << std::endl;
+            guarded.request({base, differentSubsong});
+            capture(ambiguousDir, stages / "identity-recovered-subsongs", 3, 2);
+            require(!fs::exists(ambiguousDir / "bridge-error.txt"),
+                    "Successful identity recovery did not clear error marker");
+            guarded.shutdown();
+            std::cout << "PUBLISHER_CASE_COLLISION_RECOVERY=PASS" << std::endl;
+        }
         std::cout << "PUBLISHER_FAILURE_RECOVERY=PASS" << std::endl;
         std::cout << "PUBLISHER_NATIVE_INTEGRATION=PASS" << std::endl;
         return 0;
