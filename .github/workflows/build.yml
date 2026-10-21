@@ -210,6 +210,7 @@ jobs:
             -Version $version `
             -Commit '${{ github.sha }}'
       - name: Upload qualified component candidate
+        if: false # Explicit second-line no-public-binaries gate; package job also disabled
         uses: actions/upload-artifact@v7
         with:
           name: foo_dj_library_bridge-component-${{ github.sha }}
