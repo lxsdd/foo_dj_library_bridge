@@ -3,11 +3,14 @@
 
 #include <windows.h>
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
+#include <iterator>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -111,6 +114,22 @@ djbridge::Record make_record(unsigned id, const std::string& title) {
 
 int wmain(int argc, wchar_t** argv) {
     try {
+        if (argc == 3 && std::wstring_view(argv[1]) == L"--crash-child") {
+            const fs::path directory = fs::path(argv[2]);
+            require(fs::is_directory(directory),
+                    "Crash child may only target its pre-created synthetic directory");
+            require(_wputenv_s(L"DJBRIDGE_CI_CRASH_PROBE", L"1") == 0,
+                    "Could not enable test-only process pause");
+            djbridge::SourceInfo childSource{
+                "ci-synthetic-source", "Synthetic CI",
+                "Disposable Publisher Test", "0.1.0-rc4"};
+            djbridge::Publisher child;
+            require(child.configure(directory, childSource), "Crash child unavailable");
+            child.request({make_record(990, "Interrupted by host process kill")});
+            std::this_thread::sleep_for(40s);
+            child.shutdown();
+            throw std::runtime_error("Crash child unexpectedly survived process-kill test");
+        }
         require(argc == 2, "Expected one isolated test root argument");
         const fs::path root = fs::path(argv[1]);
         require(!fs::exists(root), "Refusing to overwrite an existing test root");
@@ -287,6 +306,95 @@ int wmain(int argc, wchar_t** argv) {
                     "Successful identity recovery did not clear error marker");
             guarded.shutdown();
             std::cout << "PUBLISHER_CASE_COLLISION_RECOVERY=PASS" << std::endl;
+        }
+        // End-to-end HARD PROCESS KILL (not merely a simulated error):
+        // Start a second process using only invented music paths and test root.
+        // Compile-time guard pauses it after its complete=0 state is *really*
+        // atomically committed. Kill it without running Publisher::shutdown,
+        // then confirm a second publisher process can recover the generation.
+        {
+            const fs::path crashDir = root / "crash-host";
+            fs::create_directories(crashDir);
+            const auto baseline = make_record(990, "Before host process crash");
+            {
+                djbridge::Publisher initial;
+                require(initial.configure(crashDir, source), "Crash baseline publisher unavailable");
+                initial.request({baseline});
+                capture(crashDir, stages / "crash-baseline", 1, 1);
+                initial.shutdown();
+            }
+            const fs::path crashPayload = crashDir / "digital-items.tsv.gz";
+            std::ifstream oldStream(crashPayload, std::ios::binary);
+            require(static_cast<bool>(oldStream), "Cannot read synthetic baseline gzip");
+            const std::string oldBytes((std::istreambuf_iterator<char>(oldStream)),
+                                        std::istreambuf_iterator<char>());
+            // Windows CRT readers may deny FILE_SHARE_DELETE. Closing before
+            // recovery is essential: a test-held handle is not a producer bug.
+            oldStream.close();
+            wchar_t modulePath[32768]{};
+            const DWORD moduleLength = GetModuleFileNameW(
+                nullptr, modulePath, static_cast<DWORD>(std::size(modulePath)));
+            require(moduleLength > 0 && moduleLength < std::size(modulePath),
+                    "Cannot resolve test executable path");
+            std::wstring command = L"\"" + std::wstring(modulePath) +
+                                   L"\" --crash-child \"" + crashDir.wstring() + L"\"";
+            STARTUPINFOW si{};
+            si.cb = sizeof(si);
+            PROCESS_INFORMATION pi{};
+            require(CreateProcessW(modulePath, command.data(), nullptr, nullptr,
+                                   FALSE, CREATE_NO_WINDOW, nullptr, nullptr,
+                                   &si, &pi) != 0, "Could not create disposable crash-child process");
+            CloseHandle(pi.hThread);
+            bool markerSeen = false;
+            try {
+                const auto deadline = std::chrono::steady_clock::now() + 15s;
+                while (std::chrono::steady_clock::now() < deadline) {
+                    const auto [marker, count] = read_state(crashDir / "bridge-state.tsv");
+                    if (marker == "2:0" && count == "1") {
+                        markerSeen = true;
+                        break;
+                    }
+                    if (WaitForSingleObject(pi.hProcess, 0) != WAIT_TIMEOUT) break;
+                    std::this_thread::sleep_for(15ms);
+                }
+                require(markerSeen, "Child never committed its incomplete generation");
+                require(WaitForSingleObject(pi.hProcess, 0) == WAIT_TIMEOUT,
+                        "Crash child exited before forceful termination");
+                require(TerminateProcess(pi.hProcess, 73) != 0,
+                        "Could not terminate crash child without shutdown");
+                require(WaitForSingleObject(pi.hProcess, 5000) == WAIT_OBJECT_0,
+                        "Crash child did not terminate in five seconds");
+            } catch (...) {
+                if (WaitForSingleObject(pi.hProcess, 0) == WAIT_TIMEOUT) {
+                    TerminateProcess(pi.hProcess, 73);
+                    WaitForSingleObject(pi.hProcess, 5000);
+                }
+                CloseHandle(pi.hProcess);
+                throw;
+            }
+            CloseHandle(pi.hProcess);
+            require(read_state(crashDir / "bridge-state.tsv").first == "2:0",
+                    "Hard kill left an unexpectedly complete generation");
+            std::ifstream afterStream(crashPayload, std::ios::binary);
+            const std::string afterBytes((std::istreambuf_iterator<char>(afterStream)),
+                                          std::istreambuf_iterator<char>());
+            afterStream.close();
+            require(afterBytes == oldBytes, "Hard kill changed previous committed gzip bytes");
+            const auto incompleteDir = stages / "crash-incomplete";
+            fs::create_directories(incompleteDir);
+            fs::copy_file(crashDir / "bridge-state.tsv",
+                          incompleteDir / "bridge-state.tsv");
+            fs::copy_file(crashPayload, incompleteDir / "digital-items.tsv.gz");
+            std::cout << "PUBLISHER_ACTUAL_PROCESS_KILL_FAIL_CLOSED=PASS" << std::endl;
+            {
+                djbridge::Publisher recovered;
+                require(recovered.configure(crashDir, source),
+                        "Publisher could not initialize after abrupt process death");
+                recovered.request({make_record(990, "After real host process crash")});
+                capture(crashDir, stages / "crash-recovered", 3, 1);
+                recovered.shutdown();
+            }
+            std::cout << "PUBLISHER_ACTUAL_PROCESS_KILL_RECOVERY=PASS" << std::endl;
         }
         std::cout << "PUBLISHER_FAILURE_RECOVERY=PASS" << std::endl;
         std::cout << "PUBLISHER_NATIVE_INTEGRATION=PASS" << std::endl;
