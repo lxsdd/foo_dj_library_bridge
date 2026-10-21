@@ -252,6 +252,12 @@ int wmain(int argc, wchar_t** argv) {
             auto differentSubsong = base;
             differentSubsong.subsong = 1;
             differentSubsong.title = "CUE subsong B";
+            differentSubsong.metadata_vectors_json =
+                djbridge::canonical_metadata_vectors_json({
+                    {"TITLE", {differentSubsong.title}},
+                    {"ARTIST", {"Synthetic Artist", ""}},
+                    {"MOOD", {"Synthetic", "CI"}}
+                });
             differentSubsong.tag_fingerprint = djbridge::fingerprint_for(differentSubsong);
             auto duplicate = base;
             duplicate.path = "c:\\syntheticci\\casetrack.flac";
