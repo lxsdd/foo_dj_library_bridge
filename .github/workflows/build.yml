@@ -114,7 +114,9 @@ jobs:
         run: ./tests/test-verifier-windows.ps1
 
   windows-build:
-    runs-on: windows-latest
+    # Alternate Microsoft-hosted runner image; same official SHA-pinned SDK.
+    # No untrusted mirror, no binary artifact, no change to v143 Win32/x64.
+    runs-on: windows-2022
     strategy:
       fail-fast: true
       matrix:
