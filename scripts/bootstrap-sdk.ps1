@@ -60,6 +60,16 @@ try {
     if (-not $readme.Contains("foobar2000 SDK, version $SdkVersion")) {
         throw 'SDK readme version mismatch.'
     }
+    # Provenance evidence comes from the verified vendor archive only.
+    # Print digests (not redistributed SDK files) for independent review on
+    # both hosted Windows architectures. Nonempty notices are mandatory.
+    foreach ($notice in @('sdk-license.txt', 'pfc\pfc-license.txt', 'libPPUI\libPPUI-license.txt')) {
+        $noticePath = Join-Path $Stage $notice
+        $noticeSize = (Get-Item -LiteralPath $noticePath).Length
+        if ($noticeSize -lt 100) { throw "Missing/truncated SDK notice: $notice" }
+        $noticeHash = (Get-FileHash -LiteralPath $noticePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        Write-Host "PINNED_SDK_NOTICE|$notice|bytes=$noticeSize|sha256=$noticeHash"
+    }
     Set-Content -LiteralPath (Join-Path $Stage '.sdk-pin.sha256') -Value $ExpectedSHA256 -Encoding ascii -NoNewline
     Move-Item -LiteralPath $Stage -Destination $SdkRoot
     Write-Host "PASS: pinned foobar2000 SDK $SdkVersion / SHA256 $ExpectedSHA256"
