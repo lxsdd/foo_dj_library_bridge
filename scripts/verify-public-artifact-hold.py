@@ -136,7 +136,7 @@ print(f"PASS: {_D_DIR} workflow audit including new-workflow bypass regression")
 import hashlib as _hashlib
 
 _APPROVED_WORKFLOW_GIT_BLOBS = {
-    "build.yml": "689668c381f2384534b697ddd61168c1139e4900",
+    "build.yml": "0784f2bac468fe14482240b27fa62f7e1b7d9a3d",
     "candidate.yml": "1a8c7b17a396cdcc5d084583f19649f8c6dac6d5",
     "public-pr-head-ci-recovery.yml": "c6c346346462b4636dea1833af85c36a59bf61e7",
     "release-qualified.yml": "4a533cb81930c83938ae05ba6fa6247b472be0d0",
