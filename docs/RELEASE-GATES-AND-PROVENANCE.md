@@ -182,3 +182,32 @@ code, not these independently maintained Bridge source files.
 
 This checklist does not request a build, download, installation, or test
 now. Final merge/tag/publication decisions are separate explicit acts.
+
+## Coordinated Draft integration requirements (no automatic merge)
+
+PR #9 is the standalone safety/license gate. PR #7 is an independent
+verifier change. PRs #11–#15 form a stacked host/CUE qualification chain.
+These scopes overlap in `.github/workflows/build.yml`, but their independent
+green checks are **not** a combined exact-SHA runtime endorsement.
+
+- Do **not** merge PR #7, or the #11–#15 chain, into `main` while
+  `main` retains the original enabled binary uploads/release workflow.
+- The exact workflow Git-blob allowlist in PR #9 intentionally prevents an
+  unreviewed follow-up workflow edit, including a later verifier/host-test
+  integration. A coordinated source-only integration must inspect the full
+  composed workflow, update reviewed pins deliberately, and confirm all
+  publication guards remain `if: false`.
+- Before any eventual owner-authorized merge, qualify a *single exact
+  integration HEAD* with source-only contract/verifier tests and both
+  native Win32/x64 foobar host tests. Successful independent draft SHAs
+  must not be interpreted as this composed integration check.
+- Merely making the SDK download succeed is not permission to trigger
+  ordinary manual candidate/release workflows: no binaries, package
+  artifacts, tags or release publishing while ownership/notice and
+  private-device gates remain open.
+- Keep all PRs Draft, preserve the #11→#12→#13→#14→#15 dependency order,
+  and do not resolve conflicts through an unauthorized merge, rebase,
+  or `main` modification.
+
+This is a **release-governance note**, not a request for an intermediate
+approval or a change to the current branches.
