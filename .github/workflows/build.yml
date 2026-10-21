@@ -27,7 +27,7 @@ jobs:
       - name: Parse new host automation scripts before Windows builds
         shell: pwsh
         run: |
-          foreach ($name in @('scripts/probe-foobar-media-library-ui.ps1','scripts/qualify-live-library.ps1','scripts/verify-nonempty-host-restart.ps1','scripts/probe-external-cue.ps1','scripts/enable-cue-indexing-disposable.ps1','scripts/probe-embedded-flac-cue.ps1')) {
+          foreach ($name in @('scripts/probe-foobar-media-library-ui.ps1','scripts/qualify-live-library.ps1','scripts/verify-nonempty-host-restart.ps1','scripts/probe-external-cue.ps1','scripts/enable-cue-indexing-disposable.ps1','scripts/probe-embedded-flac-cue.ps1','scripts/local-acceptance-build.ps1')) {
             $tokens = $null
             $parseErrors = $null
             [System.Management.Automation.Language.Parser]::ParseFile(
@@ -192,6 +192,9 @@ jobs:
           path: external/shared-host-runner
           persist-credentials: false
       - uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # pinned v2
+      - name: Preflight private acceptance build tools (no source download or user files)
+        shell: pwsh
+        run: ./scripts/local-acceptance-build.ps1 -PreflightOnly
       - name: Bootstrap exact foobar2000 SDK and build with VS2022 toolset
         shell: pwsh
         run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset v143
