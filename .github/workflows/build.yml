@@ -136,6 +136,7 @@ jobs:
     if: false # Combined binary packaging disabled until explicit owner approval
     needs:
       - contract-tests
+      - windows-publisher-no-sdk
       - windows-build
     runs-on: windows-latest
     steps:
