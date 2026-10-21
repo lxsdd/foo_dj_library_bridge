@@ -76,7 +76,24 @@ require("$ExpectedArchiveHash = 'd4c55077336fae81bf8df0259b5b2748fa45ea84132c656
         "SDK upstream archive evidence pin missing")
 require("Invoke-WebRequest" not in bootstrap and "foobar2000_component_template.git" in bootstrap,
         "Bridge SDK bootstrap must use the pinned owner-controlled Git source, not vendor archive HTTP")
-require("[string]$PlatformToolset = 'v143'" in build, "VS2022 v143 CI toolset pin missing")
+require("[ValidateSet('v143','v145')] [string]$PlatformToolset = 'v143'" in build,
+        "v143 default with explicit reviewed v145 toolset option missing")
+local_build = (root / "scripts" / "local-acceptance-build.ps1").read_text(encoding="utf-8")
+workflow_source = (root / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
+require("[ValidateSet('Auto','v143','v145')]" in local_build,
+        "private SHA-pinned build must accept only vetted toolsets")
+require("if ($hasV143) { 'v143' } else { 'v145' }" in local_build,
+        "private build toolset-selection fail-safe missing")
+require("MSVC C++ $selectedToolset x86/x64" in local_build,
+        "per-architecture compiler presence requirement removed")
+require("-PlatformToolset $selectedToolset" in local_build,
+        "private dual-architecture compile does not enforce selected toolset")
+require("toolset: [v143, v145]" in workflow_source,
+        "Win32/x64 host CI must independently qualify both reviewed toolsets")
+require("-Toolset '${{ matrix.toolset }}'" in workflow_source and
+        "-PlatformToolset '${{ matrix.toolset }}'" in workflow_source and
+        "/p:PlatformToolset='${{ matrix.toolset }}'" in workflow_source,
+        "host builds, publisher and exact SHA acceptance must use same selected toolset")
 require('GENERIC_WRITE' in publisher and 'FlushFileBuffers' in publisher, "durable temp-file flush must use a writable handle")
 require('MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH' in publisher, "atomic write-through replace missing")
 require('complete ? 1 : 0' in publisher, "state complete marker missing")
@@ -112,5 +129,5 @@ print("- profile-local per-instance storage via core_api::get_profile_path()")
 print("- source metadata in schema-v3 state")
 print("- schema-v3 payload preserves schema-v2 prefix and appends exact metadata vectors")
 print("- arbitrary metadata enumeration without core-field duplication")
-print("- C++20 / target v81 / VS2022 v143 build path")
+print("- C++20 / target v81 / independently gated VS2022 v143 and VS2026 v145 host build paths")
 print("- atomic complete=0 -> payload -> complete=1 publication")
