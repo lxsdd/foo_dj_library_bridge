@@ -359,15 +359,6 @@ jobs:
           } finally {
             if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction Stop }
           }
-      - name: Upload DLL
-        if: false # Private source-only qualification, never upload DLLs
-        uses: actions/upload-artifact@v7
-        with:
-          name: foo_dj_library_bridge-${{ matrix.platform }}
-          path: out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll
-          if-no-files-found: error
-          retention-days: 7
-
   package-component:
     name: Package verified foobar2000 component
     if: false # No combined component packaging without owner rights clearance
