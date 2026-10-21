@@ -50,7 +50,7 @@ jobs:
           echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
 
       - name: Download exact component candidate
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8; disabled release
         with:
           name: ${{ steps.candidate.outputs.artifact_name }}
           path: candidate
