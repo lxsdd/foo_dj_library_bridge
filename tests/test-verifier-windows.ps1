@@ -87,6 +87,25 @@ try {
     $unicode = New-SyntheticBridge -Name 'valid-utf8-unicode' -Schema 3 -Title 'Größe – 東京 🎵'
     & $verifier -BridgeDirectory $unicode
     Write-Host "PASS: PowerShell $($PSVersionTable.PSVersion) preserves valid UTF-8 multibyte text"
+    $invalidUtf8 = New-SyntheticBridge -Name 'invalid-utf8-bytes' -Schema 3
+    [byte[]]$badBytes = @(Get-SyntheticGzipPayload -Directory $invalidUtf8)
+    $damaged = $false
+    for ($i = 0; $i -lt ($badBytes.Length - 1); $i++) {
+        # Replace the title's ASCII "Sy" with an invalid two-byte UTF-8
+        # sequence (C3 28), retaining valid gzip CRC/header/trailer.
+        if ($badBytes[$i] -eq 83 -and $badBytes[$i + 1] -eq 121) {
+            $badBytes[$i] = 195
+            $badBytes[$i + 1] = 40
+            $damaged = $true
+            break
+        }
+    }
+    if (-not $damaged) { throw 'Synthetic title bytes were not found' }
+    Set-SyntheticGzipPayload -Directory $invalidUtf8 -Bytes $badBytes
+    $rejectedInvalidUtf8 = $false
+    try { & $verifier -BridgeDirectory $invalidUtf8 } catch { $rejectedInvalidUtf8 = $true }
+    if (-not $rejectedInvalidUtf8) { throw 'Invalid UTF-8 was silently accepted' }
+    Write-Host "PASS: PowerShell $($PSVersionTable.PSVersion) rejects invalid UTF-8 without loss"
     $rich = New-SyntheticBridge -Name 'valid-rich-json' -Schema 3 -Extra '{"MOOD":["warm","cold"]}' -Vectors '[{"name":"ARTIST","values":["A","A",""]},{"name":"MOOD","values":["warm"]}]'
     & $verifier -BridgeDirectory $rich
     Write-Host 'PASS: valid multivalue metadata and empty vector strings preserved'
