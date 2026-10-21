@@ -301,4 +301,8 @@ Assert-SyntheticAudioUnchanged -Path $first -ExpectedHash $firstModifiedHash -Ph
 Write-Host "BRIDGE_SYNTHETIC_MEDIA_NO_UNEXPECTED_WRITES_$Architecture=PASS"
 Write-Host "BRIDGE_REAL_LIBRARY_ADD_MODIFY_REMOVE_$Architecture=PASS"
 & (Join-Path $PSScriptRoot 'probe-external-cue.ps1') -ProfileDirectory $profile -Architecture $Architecture -MediaDirectory $mediaDir -BeforeGeneration $g4
+# Additional end-to-end guard: no CUE indexing, removal or embedded FLAC scan
+# may mutate the retained synthetic one-track physical media baseline.
+Assert-SyntheticAudioUnchanged -Path $first -ExpectedHash $firstModifiedHash -Phase 'AFTER_ALL_CUES'
+Write-Host "BRIDGE_SYNTHETIC_MEDIA_COMPLETE_HOST_NO_WRITES_$Architecture=PASS"
 
