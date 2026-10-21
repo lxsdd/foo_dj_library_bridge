@@ -150,8 +150,14 @@ if ($sameState) {
 if (-not $sameState) {
     throw 'Bridge generation/state changed while verifying; refuse mixed snapshot'
 }
-$source = if ($state.source_name) { $state.source_name } else { '(legacy/no source metadata)' }
+$source = if ($state.ContainsKey('source_name') -and $state['source_name']) {
+    $state['source_name']
+} else {
+    '(legacy/no source metadata)'
+}
 Write-Host "PASS: schema v$($state.schema_version), generation $($state.generation), $count items, complete=1, $expectedColumns columns"
 Write-Host "Source: $source"
-if ($state.profile_path) { Write-Host "Profile: $($state.profile_path)" }
+if ($state.ContainsKey('profile_path') -and $state['profile_path']) {
+    Write-Host "Profile: $($state['profile_path'])"
+}
 Write-Host "Bridge: $BridgeDirectory"
