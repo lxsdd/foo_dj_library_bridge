@@ -62,6 +62,27 @@ try {
     $rich = New-SyntheticBridge -Name 'valid-rich-json' -Schema 3 -Extra '{"MOOD":["warm","cold"]}' -Vectors '[{"name":"ARTIST","values":["A","A",""]},{"name":"MOOD","values":["warm"]}]'
     & $verifier -BridgeDirectory $rich
     Write-Host 'PASS: valid multivalue metadata and empty vector strings preserved'
+    # A complete=1 marker declaring zero items must reject an unexpected
+    # payload row immediately, without consuming additional gzip records.
+    $overflow = New-SyntheticBridge -Name 'declared-zero-with-row' -Schema 3
+    $stateFile = Join-Path $overflow 'bridge-state.tsv'
+    $originalState = [System.IO.File]::ReadAllText($stateFile, $utf8)
+    $originalToken = 'item_count' + $tab + '1'
+    $invalidState = $originalState.Replace($originalToken, 'item_count' + $tab + '0')
+    if ($invalidState -eq $originalState) { throw 'Synthetic item_count replacement did not execute' }
+    [System.IO.File]::WriteAllText($stateFile, $invalidState, $utf8)
+    $overflowRejected = $false
+    try { & $verifier -BridgeDirectory $overflow } catch { $overflowRejected = $true }
+    if (-not $overflowRejected) { throw 'Row overflow was accepted despite declared zero items' }
+    Write-Host "PASS: PowerShell $($PSVersionTable.PSVersion) refuses row overflow"
+    # A UTF-8 BOM at the beginning of state must be treated identically
+    # to BOM-free state, including on the legacy Windows PowerShell runtime.
+    $bomDir = New-SyntheticBridge -Name 'state-with-utf8-bom' -Schema 3
+    $bomPath = Join-Path $bomDir 'bridge-state.tsv'
+    $withBom = [byte[]]@(239, 187, 191) + [System.IO.File]::ReadAllBytes($bomPath)
+    [System.IO.File]::WriteAllBytes($bomPath, $withBom)
+    & $verifier -BridgeDirectory $bomDir
+    Write-Host "PASS: PowerShell $($PSVersionTable.PSVersion) accepts UTF-8 BOM state"
     foreach ($testcase in @(
         @{ Name = 'bad-subsong'; Subsong = '-1'; Vectors = '[]' },
         @{ Name = 'bad-vectors'; Subsong = '0'; Vectors = '{}' },
