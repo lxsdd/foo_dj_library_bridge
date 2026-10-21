@@ -45,6 +45,20 @@ New-Item -ItemType Directory -Path $mediaDir -ErrorAction Stop | Out-Null
 $first=Join-Path $mediaDir 'Synthetic 01.wav'
 $second=Join-Path $mediaDir 'Synthetic 02.wav'
 New-SilentWave -Path $first -Seconds 1
+# Hash original synthetic media before foobar scans it. Bridge must remain
+# read-only to media. This is a CI-only assertion, not a claim about the
+# owner's physical collection or third-party components.
+function Assert-SyntheticAudioUnchanged([string]$Path,[string]$ExpectedHash,[string]$Phase) {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw "Synthetic media unexpectedly absent during $Phase"
+    }
+    $actual=(Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
+    if ($actual -cne $ExpectedHash) {
+        throw "Unexpected synthetic media-byte modification during $Phase"
+    }
+    Write-Host "BRIDGE_SYNTHETIC_AUDIO_READONLY_$($Phase)_$Architecture=PASS"
+}
+$firstInitialHash=(Get-FileHash -LiteralPath $first -Algorithm SHA256).Hash
 Write-Host "BRIDGE_SYNTHETIC_WAVE_$Architecture=PASS"
 
 if ($FolderEdit.Current.ClassName -ne 'Edit' -or $SelectButton.Current.ClassName -ne 'Button') {
@@ -264,17 +278,27 @@ function Wait-BridgeSnapshot([int]$ExpectedCount,[long]$PreviousGeneration,
  throw "Real foobar Media Library phase $Phase timed out: $observed"
 }
 $g1=Wait-BridgeSnapshot -ExpectedCount 1 -PreviousGeneration 1 -TrackNames @('Synthetic 01.wav') -Phase INITIAL
+Assert-SyntheticAudioUnchanged -Path $first -ExpectedHash $firstInitialHash -Phase 'INITIAL'
 Write-Host "BRIDGE_PREFS_FOLDER_REGISTRATION_$Architecture=PASS via_actual_foobar_library_callback"
 New-SilentWave -Path $second -Seconds 1
+$secondInitialHash=(Get-FileHash -LiteralPath $second -Algorithm SHA256).Hash
 $g2=Wait-BridgeSnapshot -ExpectedCount 2 -PreviousGeneration $g1 -TrackNames @('Synthetic 01.wav','Synthetic 02.wav') -Phase ADDED
+Assert-SyntheticAudioUnchanged -Path $first -ExpectedHash $firstInitialHash -Phase 'ADDED_FIRST'
+Assert-SyntheticAudioUnchanged -Path $second -ExpectedHash $secondInitialHash -Phase 'ADDED_SECOND'
 # Exercise the actual foobar file-monitor and metadata/technical-info refresh.
 # The same isolated one-second WAV is rewritten as a valid two-second WAV.
 # No real user file, tag or database is touched.
 Start-Sleep -Milliseconds 1100
 New-SilentWave -Path $first -Seconds 2
+$firstModifiedHash=(Get-FileHash -LiteralPath $first -Algorithm SHA256).Hash
+if ($firstModifiedHash -ceq $firstInitialHash) { throw 'Intended synthetic WAV modification had no effect.' }
 $g3=Wait-BridgeSnapshot -ExpectedCount 2 -PreviousGeneration $g2 -TrackNames @('Synthetic 01.wav','Synthetic 02.wav') -Phase MODIFIED -ExpectedDurationSeconds 2
+Assert-SyntheticAudioUnchanged -Path $first -ExpectedHash $firstModifiedHash -Phase 'MODIFIED_FIRST'
+Assert-SyntheticAudioUnchanged -Path $second -ExpectedHash $secondInitialHash -Phase 'MODIFIED_SECOND'
 Remove-Item -LiteralPath $second -Force -ErrorAction Stop
 $g4=Wait-BridgeSnapshot -ExpectedCount 1 -PreviousGeneration $g3 -TrackNames @('Synthetic 01.wav') -Phase REMOVED -ExpectedDurationSeconds 2
+Assert-SyntheticAudioUnchanged -Path $first -ExpectedHash $firstModifiedHash -Phase 'REMOVED'
+Write-Host "BRIDGE_SYNTHETIC_MEDIA_NO_UNEXPECTED_WRITES_$Architecture=PASS"
 Write-Host "BRIDGE_REAL_LIBRARY_ADD_MODIFY_REMOVE_$Architecture=PASS"
 & (Join-Path $PSScriptRoot 'probe-external-cue.ps1') -ProfileDirectory $profile -Architecture $Architecture -MediaDirectory $mediaDir -BeforeGeneration $g4
 
