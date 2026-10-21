@@ -44,15 +44,29 @@ void capture(const fs::path& live, const fs::path& output,
     const auto deadline = std::chrono::steady_clock::now() + 30s;
     const auto state = live / "bridge-state.tsv";
     const auto payload = live / "digital-items.tsv.gz";
+    const auto errorPath = live / "bridge-error.txt";
+    const auto previousErrorTimestamp = fs::is_regular_file(errorPath) ?
+        fs::last_write_time(errorPath) : fs::file_time_type::min();
     const std::string expected = std::to_string(generation) + ":1";
     for (;;) {
         const auto [marker, items] = read_state(state);
         if (marker == expected && items == std::to_string(count) &&
             fs::exists(payload)) break;
+        if (fs::is_regular_file(errorPath) &&
+            fs::last_write_time(errorPath) > previousErrorTimestamp) {
+            std::ifstream stream(errorPath);
+            std::string message;
+            std::getline(stream, message);
+            throw std::runtime_error("Native Publisher error for generation " +
+                std::to_string(generation) + ": " + message.substr(0, 250));
+        }
         if (std::chrono::steady_clock::now() >= deadline) {
+            std::ifstream stream(errorPath);
+            std::string message;
+            if (stream) std::getline(stream, message);
             throw std::runtime_error("Timed out at generation " +
                 std::to_string(generation) + " marker=" + marker +
-                " items=" + items);
+                " items=" + items + " last_error=" + message.substr(0, 250));
         }
         std::this_thread::sleep_for(75ms);
     }
