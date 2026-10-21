@@ -77,18 +77,23 @@ For another/portable profile:
 
 RC2 remains the last real-Windows-qualified profile-local/multi-instance baseline: a portable 1,345-item profile and the standard 54,129-item profile coexist independently, and DJ Library can switch between them without cross-overwrite.
 
-## Source-use proposal, copyright and release freeze
+## License and release freeze
 
-There is **no active root project `LICENSE`**. The owner intends free use,
-including by professional DJs performing commercially, while preventing
-the sale of the Bridge itself or substantially equivalent paid offerings.
-The proposed **MIT + Commons Clause License Condition v1.0** is
-**source-available, not OSI open source**, and currently **nonbinding**.
-See [the license proposal](docs/PROPOSED-LICENSING-MIT-COMMONS-CLAUSE.md)
-and [third-party inventory](docs/THIRD-PARTY-NOTICES-INVENTORY.md).
-Final license text, licensor name, rights clearance and copyright notice
-require explicit owner approval. The Bridge license cannot replace SDK,
-pfc, libPPUI, player or other independent third-party licenses.
+The Bridge-owned original project code is licensed under the combined
+[MIT + Commons Clause License Condition v1.0](LICENSE), with
+`Copyright (c) 2026 lxsdd` and `Licensor: lxsdd`, as explicitly
+approved by the project owner. This is **source-available, not OSI
+open source**. Free private and professional DJ use, including paid
+performances, is allowed; selling the Bridge itself or substantially
+equivalent paid Bridge-based offerings is restricted.
+Read the exact conditions, especially regarding substantially Bridge-based
+paid hosting/consulting and materially different value-added offerings.
+The [license decision history](docs/PROPOSED-LICENSING-MIT-COMMONS-CLAUSE.md)
+and [third-party inventory](docs/THIRD-PARTY-NOTICES-INVENTORY.md)
+explain the scope. The combined license does not relicense SDK, pfc,
+libPPUI, foobar2000 player, or other separately licensed materials.
+Owner rights to relicense third-party code fragments and the correct
+attribution/notice contents still require independent release review.
 
 **Do not dispatch candidate, package or manual release workflows from `main`.**
 The protected `main` still has historical publish-capable workflows;
