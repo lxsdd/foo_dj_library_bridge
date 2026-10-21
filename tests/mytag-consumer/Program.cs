@@ -44,7 +44,9 @@ internal static class MyTagBridgeInterop
                 ("g7-delete", 7, 0),
                 ("g8-many", 8, 1024),
                 ("g10-recovery", 10, 1),
-                ("g11-large", 11, 54129)
+                ("g11-large", 11, 54129),
+                ("identity-valid-subsongs", 1, 2),
+                ("identity-recovered-subsongs", 3, 2)
             };
             string? oldFingerprint = null;
             foreach (var (name, generation, count) in stages)
@@ -98,6 +100,16 @@ internal static class MyTagBridgeInterop
                     Must(snapshot.Tracks.Single().GetFieldValues("TITLE")
                          .SequenceEqual(new[] {"Recovered after failure"}),
                          "MyTagSync reader lost successful recovery");
+                if (name.StartsWith("identity-", StringComparison.Ordinal))
+                {
+                    Must(snapshot.Tracks.Count == 2 &&
+                         snapshot.Tracks[0].Path.Equals(snapshot.Tracks[1].Path, StringComparison.OrdinalIgnoreCase) &&
+                         snapshot.Tracks.Select(x => x.Subsong).OrderBy(x => x).SequenceEqual(new[] {0, 1}) &&
+                         snapshot.Tracks.Single(x => x.Subsong == 0).GetFieldValues("TITLE").SequenceEqual(new[] {"CUE subsong A"}) &&
+                         snapshot.Tracks.Single(x => x.Subsong == 1).GetFieldValues("TITLE").SequenceEqual(new[] {"CUE subsong B"}),
+                         "Original MyTagSync reader lost CUE subsong identities or lossless title vectors: " + name);
+                    Console.WriteLine("NATIVE_ORIGINAL_MYTAG_CUE_SUBSONGS=PASS " + name);
+                }
                 if (name == "g11-large")
                     Must(snapshot.Tracks[0].GetFieldValues("TITLE").Single().StartsWith(
                          "Synthetic library track ", StringComparison.Ordinal),
