@@ -170,13 +170,11 @@ jobs:
           }
 
   windows-build:
-    name: Windows foobar host (${{ matrix.platform }}, ${{ matrix.toolset }})
     runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
         platform: [Win32, x64]
-        toolset: [v143, v145]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pinned v7
       - name: Checkout immutable 2026-10-01 SDK source from owner-controlled template
@@ -196,10 +194,10 @@ jobs:
       - uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # pinned v2
       - name: Preflight private acceptance build tools (no source download or user files)
         shell: pwsh
-        run: ./scripts/local-acceptance-build.ps1 -PreflightOnly -Toolset '${{ matrix.toolset }}'
-      - name: Bootstrap exact SDK and build with reviewed MSVC toolset (${{ matrix.platform }}, ${{ matrix.toolset }})
+        run: ./scripts/local-acceptance-build.ps1 -PreflightOnly -Toolset 'v143'
+      - name: Bootstrap exact SDK and build with reviewed MSVC toolset (${{ matrix.platform }}, v143)
         shell: pwsh
-        run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset '${{ matrix.toolset }}'
+        run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset 'v143'
       - name: Verify private Bridge DLL PE machine and digest (${{ matrix.platform }})
         shell: pwsh
         run: |
@@ -224,9 +222,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $msbuild = (Get-Command msbuild.exe -ErrorAction Stop).Source
-          & $msbuild 'tests/publisher_integration.vcxproj' /m /p:Configuration=Release /p:Platform='${{ matrix.platform }}' /p:PlatformToolset='${{ matrix.toolset }}' /restore
+          & $msbuild 'tests/publisher_integration.vcxproj' /m /p:Configuration=Release /p:Platform='${{ matrix.platform }}' /p:PlatformToolset='v143' /restore
           if ($LASTEXITCODE -ne 0) { throw 'Native Publisher test build failed' }
-          $testRoot = Join-Path $env:RUNNER_TEMP ('bridge-native-publisher-${{ matrix.platform }}-${{ matrix.toolset }}-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
+          $testRoot = Join-Path $env:RUNNER_TEMP ('bridge-native-publisher-${{ matrix.platform }}-v143-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
           try {
             & "out/${{ matrix.platform }}/Release/publisher_integration.exe" $testRoot
             if ($LASTEXITCODE -ne 0) { throw 'Native Publisher test failed' }
@@ -253,11 +251,111 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $sourceSha = '${{ github.event.pull_request.head.sha }}'
           if ($sourceSha -cnotmatch '^[a-f0-9]{40}$') { throw 'Unpinned candidate SHA' }
-          $root = Join-Path $env:RUNNER_TEMP ('bridge-local-sha-proof-${{ matrix.toolset }}-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
+          $root = Join-Path $env:RUNNER_TEMP ('bridge-local-sha-proof-v143-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
           if (Test-Path -LiteralPath $root) { throw 'Private candidate temp root unexpectedly exists' }
           try {
-            ./scripts/local-acceptance-build.ps1 -SourceSha $sourceSha -OutputDirectory $root -Toolset '${{ matrix.toolset }}'
-            Write-Host "BRIDGE_PRIVATE_ACCEPTANCE_GIT_SHA_BUILD=PASS sha=$sourceSha toolset=${{ matrix.toolset }}"
+            ./scripts/local-acceptance-build.ps1 -SourceSha $sourceSha -OutputDirectory $root -Toolset 'v143'
+            Write-Host "BRIDGE_PRIVATE_ACCEPTANCE_GIT_SHA_BUILD=PASS sha=$sourceSha toolset=v143"
+          } finally {
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction Stop }
+          }
+      - name: Upload DLL
+        if: false # Private source-only qualification, never upload DLLs
+        uses: actions/upload-artifact@v7
+        with:
+          name: foo_dj_library_bridge-${{ matrix.platform }}
+          path: out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll
+          if-no-files-found: error
+          retention-days: 7
+
+  windows-build-v145:
+    name: Windows foobar host (${{ matrix.platform }}, v145)
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [Win32, x64]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pinned v7
+      - name: Checkout immutable 2026-10-01 SDK source from owner-controlled template
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pinned v7
+        with:
+          repository: lxsdd/foobar2000_component_template
+          ref: 31a35947a7527826c2199491692802e3ce3d8bd7
+          path: external/sdk-template
+          persist-credentials: false
+      - name: Checkout immutable owner-operated foobar installer transport only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pinned v7
+        with:
+          repository: lxsdd/dev-infrastructure-public
+          ref: 35369054c56f4c6ccb2f802944e9675852fd35ec
+          path: external/shared-host-runner
+          persist-credentials: false
+      - uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # pinned v2
+      - name: Preflight private acceptance build tools (no source download or user files)
+        shell: pwsh
+        run: ./scripts/local-acceptance-build.ps1 -PreflightOnly -Toolset 'v145'
+      - name: Bootstrap exact SDK and build with reviewed MSVC toolset (${{ matrix.platform }}, v145)
+        shell: pwsh
+        run: ./scripts/build.ps1 -Platform '${{ matrix.platform }}' -Configuration Release -PlatformToolset 'v145'
+      - name: Verify private Bridge DLL PE machine and digest (${{ matrix.platform }})
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dll = 'out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll'
+          if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw 'Native Bridge DLL missing' }
+          $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $dll).Path)
+          if ($bytes.Length -lt 512 -or $bytes[0] -ne 77 -or $bytes[1] -ne 90) { throw 'Invalid MZ header' }
+          $offset = [BitConverter]::ToInt32($bytes, 0x3c)
+          if ($offset -lt 64 -or $offset -ge ($bytes.Length - 26)) { throw 'Invalid PE header offset' }
+          if ([Text.Encoding]::ASCII.GetString($bytes, $offset, 4) -cne ('PE' + [char]0 + [char]0)) { throw 'Invalid PE signature' }
+          $actual = [BitConverter]::ToUInt16($bytes, $offset + 4)
+          $expected = if ('${{ matrix.platform }}' -eq 'Win32') { [UInt16]0x014c } else { [UInt16]0x8664 }
+          $magic = [BitConverter]::ToUInt16($bytes, $offset + 24)
+          $expectedMagic = if ('${{ matrix.platform }}' -eq 'Win32') { [UInt16]0x010b } else { [UInt16]0x020b }
+          $characteristics = [BitConverter]::ToUInt16($bytes, $offset + 22)
+          if ($actual -ne $expected -or $magic -ne $expectedMagic -or ($characteristics -band 0x2000) -eq 0) { throw 'DLL PE machine or type mismatch' }
+          $sha = (Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "BRIDGE_PRIVATE_COMPONENT_PE_${{ matrix.platform }}=PASS bytes=$($bytes.Length) sha256=$sha"
+      - name: Native Publisher add/edit/remove/restart snapshot integration (${{ matrix.platform }})
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msbuild = (Get-Command msbuild.exe -ErrorAction Stop).Source
+          & $msbuild 'tests/publisher_integration.vcxproj' /m /p:Configuration=Release /p:Platform='${{ matrix.platform }}' /p:PlatformToolset='v145' /restore
+          if ($LASTEXITCODE -ne 0) { throw 'Native Publisher test build failed' }
+          $testRoot = Join-Path $env:RUNNER_TEMP ('bridge-native-publisher-${{ matrix.platform }}-v145-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
+          try {
+            & "out/${{ matrix.platform }}/Release/publisher_integration.exe" $testRoot
+            if ($LASTEXITCODE -ne 0) { throw 'Native Publisher test failed' }
+            & ./scripts/verify-publisher-fixtures.ps1 -TestRoot $testRoot
+            & ./scripts/verify-original-bridge-consumers.ps1 -TestRoot $testRoot
+            if (-not $?) { throw 'Original consumers did not accept native Publisher snapshots' }
+          } finally {
+            if (Test-Path -LiteralPath $testRoot) {
+              Remove-Item -LiteralPath $testRoot -Recurse -Force
+            }
+          }
+      - name: Real foobar2000 host, Media Library and CUE smoke (${{ matrix.platform }})
+        shell: pwsh
+        run: |
+          ./scripts/verify-bridge-host-with-pinned-installer.ps1 `
+            -Architecture '${{ matrix.platform }}' `
+            -ComponentDll 'out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll' `
+            -ProfileCheckScript 'scripts/probe-foobar-media-library-ui.ps1' `
+            -RestartProfileCheck 'true'
+      - name: Isolated exact-source private Win32+x64 candidate build (x64 CI runner only)
+        if: github.event_name == 'pull_request' && matrix.platform == 'x64'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sourceSha = '${{ github.event.pull_request.head.sha }}'
+          if ($sourceSha -cnotmatch '^[a-f0-9]{40}$') { throw 'Unpinned candidate SHA' }
+          $root = Join-Path $env:RUNNER_TEMP ('bridge-local-sha-proof-v145-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
+          if (Test-Path -LiteralPath $root) { throw 'Private candidate temp root unexpectedly exists' }
+          try {
+            ./scripts/local-acceptance-build.ps1 -SourceSha $sourceSha -OutputDirectory $root -Toolset 'v145'
+            Write-Host "BRIDGE_PRIVATE_ACCEPTANCE_GIT_SHA_BUILD=PASS sha=$sourceSha toolset=v145"
           } finally {
             if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction Stop }
           }
