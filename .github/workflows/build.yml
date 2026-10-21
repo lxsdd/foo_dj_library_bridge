@@ -131,7 +131,7 @@ jobs:
           architecture: ${{ matrix.platform }}
           component-dll: out/${{ matrix.platform }}/Release/foo_dj_library_bridge.dll
       - name: Upload DLL
-        if: github.event_name != 'pull_request'
+        if: false # Source-only hold pending owner license and merge approval
         uses: actions/upload-artifact@v7
         with:
           name: foo_dj_library_bridge-${{ matrix.platform }}
@@ -141,7 +141,7 @@ jobs:
 
   package-component:
     name: Package verified foobar2000 component
-    if: github.event_name != 'pull_request'
+    if: false # Never package Bridge binaries from this independent Draft
     needs:
       - contract-tests
       - windows-verifier
