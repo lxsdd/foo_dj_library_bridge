@@ -139,6 +139,9 @@ if ($null -eq $prior -or $prior.Rows.Count -ne 1 -or
     $prior.Generation -lt $BeforeGeneration) {
  throw 'Baseline Media Library must contain exactly one original synthetic WAV.'
 }
+# Establish the FLAC content baseline after generation and before foobar
+# observes its metadata; only our synthetic file is in scope.
+$generatedFlacHash=(Get-FileHash -LiteralPath $generated -Algorithm SHA256).Hash
 Move-Item -LiteralPath $generated -Destination $active -ErrorAction Stop
 Write-Host "BRIDGE_EMBEDDED_FLAC_FIXTURE_ADDED_$Architecture=PASS"
 $deadline=[DateTime]::UtcNow.AddSeconds(35)
@@ -194,6 +197,11 @@ foreach ($r in $observed) {
 }
 Write-Host "BRIDGE_EMBEDDED_FLAC_VIRTUAL_TRACKS_$Architecture=PASS count=2"
 Write-Host "BRIDGE_EMBEDDED_FLAC_IDENTITY_$Architecture=PASS"
+if (-not (Test-Path -LiteralPath $active -PathType Leaf) -or
+    (Get-FileHash -LiteralPath $active -Algorithm SHA256).Hash -cne $generatedFlacHash) {
+ throw 'Actual foobar embedded-FLAC CUE scan unexpectedly modified synthetic audio bytes.'
+}
+Write-Host "BRIDGE_EMBEDDED_FLAC_AUDIO_READONLY_$Architecture=PASS"
 # Remove ONLY our generated file from the isolated monitored folder and
 # observe the real foobar Media Library/Bridge callback cleanup.
 Remove-Item -LiteralPath $active -Force -ErrorAction Stop
