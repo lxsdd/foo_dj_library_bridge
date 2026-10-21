@@ -15,7 +15,7 @@ $header = @(
 )
 
 function New-SyntheticBridge {
-    param([string]$Name, [int]$Schema, [string]$Subsong = '0', [string]$Vectors = '[]')
+    param([string]$Name, [int]$Schema, [string]$Subsong = '0', [string]$Vectors = '[]', [string]$Extra = '{}')
     $directory = Join-Path $work $Name
     New-Item -ItemType Directory -Path $directory -Force | Out-Null
     $row = New-Object 'string[]' $header.Count
@@ -24,7 +24,7 @@ function New-SyntheticBridge {
     $row[4] = 'Synthetic'
     $row[19] = '1.25'
     $row[23] = 'fake-fingerprint'
-    $row[24] = '{}'
+    $row[24] = $Extra
     $row[25] = $Vectors
     if ($Schema -eq 2) {
         $tsv = ($header[0..24] -join $tab) + $lf + ($row[0..24] -join $tab) + $lf
@@ -59,12 +59,20 @@ try {
         & $verifier -BridgeDirectory $directory
         Write-Host "PASS: PowerShell $($PSVersionTable.PSVersion) schema-v$schema"
     }
+    $rich = New-SyntheticBridge -Name 'valid-rich-json' -Schema 3 -Extra '{"MOOD":["warm","cold"]}' -Vectors '[{"name":"ARTIST","values":["A","A",""]},{"name":"MOOD","values":["warm"]}]'
+    & $verifier -BridgeDirectory $rich
+    Write-Host 'PASS: valid multivalue metadata and empty vector strings preserved'
     foreach ($testcase in @(
         @{ Name = 'bad-subsong'; Subsong = '-1'; Vectors = '[]' },
         @{ Name = 'bad-vectors'; Subsong = '0'; Vectors = '{}' },
-        @{ Name = 'bad-values'; Subsong = '0'; Vectors = '[{"name":"TITLE","values":[2]}]' }
+        @{ Name = 'bad-values'; Subsong = '0'; Vectors = '[{"name":"TITLE","values":[2]}]' },
+        @{ Name = 'bad-vector-name'; Subsong = '0'; Vectors = '[{"name":"","values":[]}]' },
+        @{ Name = 'bad-extra-type'; Subsong = '0'; Vectors = '[]'; Extra = '{"MOOD":"not-array"}' },
+        @{ Name = 'bad-extra-item'; Subsong = '0'; Vectors = '[]'; Extra = '{"MOOD":[4]}' },
+        @{ Name = 'bad-extra-name'; Subsong = '0'; Vectors = '[]'; Extra = '{"":[]}' }
     )) {
-        $directory = New-SyntheticBridge -Name $testcase.Name -Schema 3 -Subsong $testcase.Subsong -Vectors $testcase.Vectors
+        $extra = if ($testcase.ContainsKey('Extra')) { $testcase.Extra } else { '{}' }
+        $directory = New-SyntheticBridge -Name $testcase.Name -Schema 3 -Subsong $testcase.Subsong -Vectors $testcase.Vectors -Extra $extra
         $rejected = $false
         try { & $verifier -BridgeDirectory $directory } catch { $rejected = $true }
         if (-not $rejected) { throw "Malformed synthetic fixture accepted: $($testcase.Name)" }
