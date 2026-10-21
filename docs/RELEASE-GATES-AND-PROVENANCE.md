@@ -112,3 +112,73 @@ HEAD and its Win32/x64 CI are green with zero unwanted artifacts,
 (4) personal end acceptance is recorded, and (5) the owner explicitly
 authorizes each merge and release step, may a release workflow be designed
 or enabled. No approval is implied by this document.
+
+## Bridge-owned source provenance: traceable Git objects, not legal title
+
+The following origins were checked through the **actual public repository's
+per-file commit history**. Every listed file was first added on
+2026-09-29 under the `lxsdd` GitHub account; the commit-author metadata
+shows the same account's GitHub noreply identity. Git author information
+can be asserted by a committer and is **not independent proof of copyright
+ownership**, third-party contribution clearance, or entitlement to relicense.
+
+| Original Bridge production file | Earliest repository commit |
+| --- | --- |
+| `src/bridge_contract.cpp` | `c7eed64a78a2a583cbbd8e6811ef846a976d67fc` |
+| `src/bridge_contract.h` | `754c3cdc737a8d26b212f2b5f173b664a3a8e54b` |
+| `src/gzip_stored.cpp` | `17f2cf31c177d70a5507cd1247d190945a9ac105` |
+| `src/gzip_stored.h` | `fcb62b73a89e30e2092e21319c1b8cefba431774` |
+| `src/foobar_bridge.cpp` | `4ea9a4d0ffd6b5c984c4b8a098e8b3affdd04663` |
+| `src/publisher.cpp` | `389e7d289080c305c66a16cdd665181f42f9fbd8` |
+| `src/publisher.h` | `f517f277326b9ece4df8bb99df778842ccbc9475` |
+
+Final rights review must separately establish that the original component
+code and any generated/borrowed fragments are eligible for the owner's
+intended redistribution license. The available commit history is not
+a substitute for the rights holder's confirmation. **No root LICENSE will
+be selected without that decision.** The SDK licenses cover the SDK's own
+code, not these independently maintained Bridge source files.
+
+## Private end-acceptance run sheet — prepared, not authorized to execute
+
+1. **Preconditions:** owner back at personal Windows 11 x64 DJ device,
+   expressly authorizes personal validation; exact source commit and
+   compiled candidate SHA-256 fixed; third-party notices and owner source
+   rights resolved separately. Never install build tools on an unrelated
+   work/borrowed computer, change machine-wide policy, or request new
+   foobar plugins merely for Bridge.
+2. **Safety capture (read-only):** record original process/profile paths
+   privately, current bridge generation and count, and baseline file
+   timestamps for a small selected sentinel set of audio/tag files and
+   Rekordbox databases. Do **not** upload personal file paths or collections
+   to public Actions. Avoid any destructive test against actual music.
+3. **Stage A — disposable profile:** use only a purpose-created isolated
+   foobar profile and generated synthetic WAV/FLAC/CUE fixtures. Confirm
+   profile-local snapshot, complete=0/1 protocol, original v2/v3 schema
+   verifier, runtime add/modify/remove + restart, and the specifically
+   supported external and embedded-*Vorbis-comment* cue cases.
+4. **Stage B — only with personal consent:** separately observe normal and
+   portable foobar profiles with their actual current item counts (historic
+   estimates 54,129 and 1,345 are **not acceptance values**); require
+   unique path+subsong identifiers, nonempty profile identifiers, stable
+   generation upon restart, and source isolation across instances. Keep
+   the Bridge read-only toward music, metadata, and private databases.
+5. **Consumer validation:** DJ Library and MyTagSync must read the
+   explicitly selected snapshot while keeping existing application source
+   records and the Rekordbox database unmodified; C# consumer validation is
+   separate from the PowerShell structural verifier. No MyTagSync write
+   or reconciliation action is permitted in this Bridge acceptance.
+6. **Pass/fail evidence:** record exact HEAD, library and foobar versions,
+   architecture, local DLL SHA-256, observed row/count/generation, cases
+   actually performed, and any errors. Re-check sentinel file timestamps
+   and DB read-only invariants. Any detected write, cross-profile leak,
+   partial generation being treated as complete, or identity duplication
+   is a **NO-GO**, followed by removal only of the isolated test component.
+7. **Not-yet-covered edge cases:** authentic host-process crash-recovery,
+   native FLAC `METADATA_BLOCK_CUESHEET`, third-party component conflicts,
+   and throughput on the actual owner collection are not certified by the
+   synthetic CI results. Keep their status explicit even if ordinary
+   foobar runtime tests are green.
+
+This checklist does not request a build, download, installation, or test
+now. Final merge/tag/publication decisions are separate explicit acts.
