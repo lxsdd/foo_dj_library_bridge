@@ -30,7 +30,7 @@ archive bytes.** Do not misrepresent the archive claim.
 | **pfc** library | `pfc/pfc-license.txt` | `ca25433e1f0cd9b63a576791ee832d704862abb9` | Permissive including commercial use; do not misrepresent origin; mark altered sources; retain notice in source redistribution; attribution in product documentation appreciated but not required |
 | **libPPUI** library | `libPPUI/libPPUI-license.txt` | `ca25433e1f0cd9b63a576791ee832d704862abb9` | Same conditions as pfc; independently identified despite matching text |
 | foobar2000 **player / installer** | <https://www.foobar2000.org/?page=License> | **Not bundled as Bridge source** | Redistribution only of **unmodified original installer**, not extracted foobar program files; no endorsement. Separate from SDK and Bridge licenses |
-| **Bridge-owned original project code** | `src/*.cpp`, `src/*.h` | Per-file first-introduction history preserved in safety Draft #9 | License **not yet selected or activated**. Proposed MIT + Commons Clause 1.0 is only a nonbinding proposal in `docs/PROPOSED-LICENSING-MIT-COMMONS-CLAUSE.md` |
+| **Bridge-owned original project code** | `src/*.cpp`, `src/*.h` | Per-file first-introduction history preserved in safety Draft #9 | Owner-approved **MIT + Commons Clause v1.0** in root `LICENSE` (`Copyright (c) 2026 lxsdd`; `Licensor: lxsdd`). Excludes all independent SDK/player/library materials; separate provenance and release clearance still required. |
 | **Actions / test fixture tools** | SHA-pinned GitHub actions, .NET, Python, MSVC, synthetic fixtures | See exact CI build workflow and vendor tools' original licensing | Build/test tools are not thereby relicensed as Bridge. Revalidate any parts copied or distributed in a later archive |
 
 No original foobar2000 installer, SDK archive, private music, source
@@ -53,11 +53,12 @@ This is text identity, **not** a whole-SDK-tree equality claim.
 
 ## Eventual distribution: explicit NO-GO until each is complete
 
-1. Confirm project rights, all relevant contributors / code provenance,
-   and final approved root license holder and grant. The owner has
-   described creating Bridge from scratch with AI assistance, but commit
-   author names and that statement alone do not establish third-party
-   fragment provenance exhaustively.
+1. Recheck project rights, all relevant contributors, the original
+   source provenance and actual scope of the **now owner-approved**
+   MIT + Commons Clause grant (public licensor `lxsdd`). The owner
+   has described creating Bridge from scratch with AI assistance, but
+   commit authorship and that statement alone do not establish
+   third-party fragment provenance exhaustively.
 2. Recheck and carry SDK, pfc and libPPUI notices as legally required for
    the actual proposed *distribution format* (source package vs compiled
    component). Do not silently remove vendor notices from redistributed
