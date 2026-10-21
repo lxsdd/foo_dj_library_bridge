@@ -15,13 +15,13 @@ $header = @(
 )
 
 function New-SyntheticBridge {
-    param([string]$Name, [int]$Schema, [string]$Subsong = '0', [string]$Vectors = '[]', [string]$Extra = '{}')
+    param([string]$Name, [int]$Schema, [string]$Subsong = '0', [string]$Vectors = '[]', [string]$Extra = '{}', [string]$Title = 'Synthetic')
     $directory = Join-Path $work $Name
     New-Item -ItemType Directory -Path $directory -Force | Out-Null
     $row = New-Object 'string[]' $header.Count
     $row[0] = 'X:\NONEXISTENT_SYNTHETIC\Track.wav'
     $row[1] = $Subsong
-    $row[4] = 'Synthetic'
+    $row[4] = $Title
     $row[19] = '1.25'
     $row[23] = 'fake-fingerprint'
     $row[24] = $Extra
@@ -59,6 +59,9 @@ try {
         & $verifier -BridgeDirectory $directory
         Write-Host "PASS: PowerShell $($PSVersionTable.PSVersion) schema-v$schema"
     }
+    $unicode = New-SyntheticBridge -Name 'valid-utf8-unicode' -Schema 3 -Title 'Größe – 東京 🎵'
+    & $verifier -BridgeDirectory $unicode
+    Write-Host "PASS: PowerShell $($PSVersionTable.PSVersion) preserves valid UTF-8 multibyte text"
     $rich = New-SyntheticBridge -Name 'valid-rich-json' -Schema 3 -Extra '{"MOOD":["warm","cold"]}' -Vectors '[{"name":"ARTIST","values":["A","A",""]},{"name":"MOOD","values":["warm"]}]'
     & $verifier -BridgeDirectory $rich
     Write-Host 'PASS: valid multivalue metadata and empty vector strings preserved'
