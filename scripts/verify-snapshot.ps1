@@ -63,7 +63,10 @@ $fs = [System.IO.File]::Open($itemsPath, 'Open', 'Read', 'ReadWrite')
 try {
     $gz = New-Object System.IO.Compression.GZipStream($fs, [System.IO.Compression.CompressionMode]::Decompress)
     try {
-        $sr = New-Object System.IO.StreamReader($gz, [System.Text.Encoding]::UTF8)
+        # Lossless schema-v3 JSON vectors cannot tolerate silent UTF-8 replacement
+        # characters. Fail closed on invalid bytes in both PS 5.1 and 7.
+        $strictUtf8 = [System.Text.UTF8Encoding]::new($false, $true)
+        $sr = [System.IO.StreamReader]::new($gz, $strictUtf8, $true, 65536)
         try {
             $header = $sr.ReadLine() -split "`t"
             if ($header.Count -ne $expectedColumns) { throw "Payload header has $($header.Count) instead of $expectedColumns columns" }
