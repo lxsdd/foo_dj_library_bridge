@@ -23,6 +23,16 @@ foreach($path in @($ProfileDirectory,$MediaDirectory)) {
 }
 $backing=Join-Path $MediaDirectory 'Synthetic CUE image.wav'
 $cuePath=Join-Path $MediaDirectory 'Synthetic CUE image.cue'
+# These fixtures are created exclusively below RUNNER_TEMP. Verify that
+# reading physical and virtual tracks never modifies their underlying audio
+# or cue text. An intentional deletion is performed only AFTER this gate.
+function Assert-CueFixtureUnchanged([string]$Path,[string]$Expected,[string]$Phase) {
+ if (-not (Test-Path -LiteralPath $Path -PathType Leaf) -or
+     (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash -cne $Expected) {
+  throw "Unexpected mutation of isolated CUE fixture during $Phase"
+ }
+ Write-Host "BRIDGE_CUE_FIXTURE_READONLY_$($Phase)_$Architecture=PASS"
+}
 if ((Test-Path -LiteralPath $cuePath) -or (Test-Path -LiteralPath $backing)) {
  throw 'Refusing to overwrite an existing CUE fixture.'
 }
@@ -82,6 +92,7 @@ function Read-ActualSnapshot {
 # invocation, avoiding a combined transaction that flakes on Win32.
 & (Join-Path $PSScriptRoot 'enable-cue-indexing-disposable.ps1') -ProfileDirectory $ProfileDirectory -Architecture $Architecture
 New-CueBackingWave
+$backingHash=(Get-FileHash -LiteralPath $backing -Algorithm SHA256).Hash
 Write-Host "BRIDGE_CUE_BACKING_WAV_$Architecture=PASS"
 # A caller must wait for the genuine Media Library ADD of the standalone
 # backing file first, before the external .cue appears.
@@ -113,6 +124,7 @@ FILE "Synthetic CUE image.wav" WAVE
     INDEX 01 00:02:00
 '@
 [IO.File]::WriteAllText($cuePath,$cueText,[Text.Encoding]::ASCII)
+$cueHash=(Get-FileHash -LiteralPath $cuePath -Algorithm SHA256).Hash
 Write-Host "BRIDGE_EXTERNAL_CUE_VALID_FIXTURE_$Architecture=PASS"
 $virtualObserved=$false
 $readableVirtualTracks=0
@@ -181,6 +193,8 @@ foreach($v in $observedVirtual) {
 }
 Write-Host "BRIDGE_EXTERNAL_CUE_AUTOINDEX_$Architecture=PASS count=$readableVirtualTracks"
 Write-Host "BRIDGE_EXTERNAL_CUE_VIRTUAL_METADATA_$Architecture=PASS"
+Assert-CueFixtureUnchanged -Path $backing -Expected $backingHash -Phase 'EXTERNAL_WAV'
+Assert-CueFixtureUnchanged -Path $cuePath -Expected $cueHash -Phase 'EXTERNAL_CUE'
 # Remove only newly created runner fixture files. The original test's 2s WAV
 # must survive and will be qualified after this cleanup plus host restart.
 Remove-Item -LiteralPath $cuePath -Force -ErrorAction Stop
@@ -238,6 +252,8 @@ if ($null -eq $priorSnap -or $priorSnap.rows.Count -ne 1) {
 $baselineGen=$priorSnap.generation
 New-MultiCueWave -Target $multiA -Seconds 1
 New-MultiCueWave -Target $multiB -Seconds 2
+$multiAHash=(Get-FileHash -LiteralPath $multiA -Algorithm SHA256).Hash
+$multiBHash=(Get-FileHash -LiteralPath $multiB -Algorithm SHA256).Hash
 $twoBackingDeadline=[DateTime]::UtcNow.AddSeconds(45)
 $twoBackingGen=0L
 while ([DateTime]::UtcNow -lt $twoBackingDeadline) {
@@ -271,6 +287,7 @@ FILE "Synthetic Multi B.wav" WAVE
     INDEX 01 00:00:00
 '@
 [IO.File]::WriteAllText($multiCue,$multiContent,[Text.Encoding]::ASCII)
+$multiCueHash=(Get-FileHash -LiteralPath $multiCue -Algorithm SHA256).Hash
 Write-Host "BRIDGE_MULTI_CUE_FIXTURE_$Architecture=PASS"
 $multiFound=$false
 $multiRows=@()
@@ -328,6 +345,9 @@ foreach($row in $multiRows) {
 }
 Write-Host "BRIDGE_MULTI_CUE_VIRTUAL_TRACKS_$Architecture=PASS count=2"
 Write-Host "BRIDGE_MULTI_CUE_IDENTITY_$Architecture=PASS distinct_source_subsong_and_fingerprint"
+Assert-CueFixtureUnchanged -Path $multiA -Expected $multiAHash -Phase 'MULTIFILE_WAV_A'
+Assert-CueFixtureUnchanged -Path $multiB -Expected $multiBHash -Phase 'MULTIFILE_WAV_B'
+Assert-CueFixtureUnchanged -Path $multiCue -Expected $multiCueHash -Phase 'MULTIFILE_CUE'
 Remove-Item -LiteralPath $multiCue -Force -ErrorAction Stop
 Remove-Item -LiteralPath $multiA -Force -ErrorAction Stop
 Remove-Item -LiteralPath $multiB -Force -ErrorAction Stop
