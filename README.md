@@ -29,6 +29,43 @@ The first 25 schema-v2 columns preserve their established ordering and meaning. 
 
 The producer writes an explicit `complete=0` marker before replacing the payload and commits `complete=1` last. This closes the crash window where a new payload could otherwise be paired with an old complete state.
 
+## Physical-file versus virtual-subtrack identity (consumer contract)
+
+The authoritative foobar2000 Media Library export uses the SDK handle
+`(get_path(), get_subsong_index())` as its **complete identity**. A path alone
+is **not** unique, and the Bridge never invents or rewrites a virtual track
+into a separate physical audio file.
+
+- **Subsong 0:** a file-level source candidate for path-based tools, subject to
+  independent physical file identity and target ContentID verification. Zero
+  by itself is not proof that a file exists or was safely imported by rekordbox.
+- **Subsong > 0:** a virtual foobar segment (often generated from an embedded
+  or external CUE sheet; can also originate from other chapter-aware inputs).
+  It is valuable as a searchable track entry for DJ Library, but **not** an
+  independent physical file and **not** a rekordbox ContentID.
+- A single file path may legitimately appear with subsongs 1, 2, ... .
+  Such rows are **not** duplicates of physical subsong 0, and must never
+  authorize or invalidate a unique, physically verified file-level MyTagSync
+  candidate. An export containing only nonzero subsongs supplies **no**
+  whole-file tag source for MyTagSync.
+- DJ Library retains the virtual rows for artist/title/track-level catalog
+  search and may show their provenance. It must not infer an independent
+  audio-file count, nor automatically project genre for a virtual hit if
+  the segment duration was not independently matched.
+- MyTagSync may use only unique verified subsong-0 rows; all other subsongs
+  are diagnostic-only. The absence of subsong 0 is **not** resolved by copying
+  tags from subsong 1 or by selecting any arbitrary virtual sibling.
+- Schema v3 is deliberately unchanged: `path` and `subsong` are existing
+  columns, so classification is derived without adding a new column or
+  breaking current BridgeSnapshot consumers. The Bridge exports per-item
+  metadata and duration, **not** segment boundaries or full embedded-CUE
+  data. Those require a dedicated CUE-aware API, not inferred timing.
+
+The existing independent synthetic embedded-FLAC CUE host fixture exercises
+two subsongs with one real file, verifies the correct unique identities
+and durations, and compares original FLAC SHA256 before and after indexing.
+No user audio, tags, or rekordbox database is written by the Bridge.
+
 ## Multi-instance behavior
 
 Each foobar2000 profile has its own directory and generation counter. Two distinct foobar2000 installations/profiles therefore no longer overwrite one global snapshot. Consumers can remember/select the profile-local source they should use.
