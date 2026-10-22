@@ -55,6 +55,25 @@ int main() {
     assert(count_columns(line) == 26);
     assert(r.tag_fingerprint.size() == 16);
 
+    // Cross-tool CUE provenance: path alone can never be a unique Bridge
+    // identity. A hypothetical file-level row 0 and virtual rows 1/2 for
+    // the *same path* remain distinct, with independent fingerprints.
+    // File-level row 0 is not implicitly created from either virtual row.
+    Record fileLevel = r;
+    fileLevel.subsong = 0;
+    Record virtualOne = r;
+    virtualOne.subsong = 1;
+    Record virtualTwo = r;
+    virtualTwo.subsong = 2;
+    assert(identity_key(fileLevel.path, 0) != identity_key(virtualOne.path, 1));
+    assert(identity_key(virtualOne.path, 1) != identity_key(virtualTwo.path, 2));
+    assert(identity_key(fileLevel.path, 0) != identity_key(virtualTwo.path, 2));
+    assert(fingerprint_for(fileLevel) != fingerprint_for(virtualOne));
+    assert(fingerprint_for(virtualOne) != fingerprint_for(virtualTwo));
+    assert(to_tsv_line(fileLevel).starts_with(fileLevel.path + "\\t0\\t"));
+    assert(to_tsv_line(virtualOne).starts_with(virtualOne.path + "\\t1\\t"));
+    assert(to_tsv_line(virtualTwo).starts_with(virtualTwo.path + "\\t2\\t"));
+
     Record r2 = r;
     assert(fingerprint_for(r2) == r.tag_fingerprint);
     r2.title = "Different";
