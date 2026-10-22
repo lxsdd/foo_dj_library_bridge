@@ -70,9 +70,9 @@ int main() {
     assert(identity_key(fileLevel.path, 0) != identity_key(virtualTwo.path, 2));
     assert(fingerprint_for(fileLevel) != fingerprint_for(virtualOne));
     assert(fingerprint_for(virtualOne) != fingerprint_for(virtualTwo));
-    assert(to_tsv_line(fileLevel).starts_with(fileLevel.path + "\\t0\\t"));
-    assert(to_tsv_line(virtualOne).starts_with(virtualOne.path + "\\t1\\t"));
-    assert(to_tsv_line(virtualTwo).starts_with(virtualTwo.path + "\\t2\\t"));
+    assert(to_tsv_line(fileLevel).starts_with(fileLevel.path + "\t0\t"));
+    assert(to_tsv_line(virtualOne).starts_with(virtualOne.path + "\t1\t"));
+    assert(to_tsv_line(virtualTwo).starts_with(virtualTwo.path + "\t2\t"));
 
     Record r2 = r;
     assert(fingerprint_for(r2) == r.tag_fingerprint);
