@@ -85,6 +85,63 @@ int main() {
     r2.metadata_vectors_json = R"([{"name":"ARTIST","values":["Artist","Guest"]}])";
     assert(fingerprint_for(r2) != r.tag_fingerprint);
 
+    // This is the single owner of the language-neutral V3 / CUE golden
+    // fixture. Downstream consumers pin its Git blob and test their own
+    // readers, never copy this production C++ serialization algorithm.
+    const auto golden = std::filesystem::current_path() /
+        "tests/contracts/bridge-v3-cue-identity.tsv";
+    std::ifstream fixture(golden, std::ios::binary);
+    assert(fixture.is_open());
+    std::string goldenHeader;
+    assert(static_cast<bool>(std::getline(fixture, goldenHeader)));
+    assert(goldenHeader == kHeader);
+    std::vector<std::string> expectedWireRows;
+    std::string goldenLine;
+    while (std::getline(fixture, goldenLine)) {
+        assert(count_columns(goldenLine) == 26);
+        expectedWireRows.push_back(goldenLine);
+    }
+    assert(expectedWireRows.size() == 3);
+    const std::vector<MetadataEntry> fixtureFields = {
+        {"DATE", {"2026-10-22"}},
+        {"GENRE", {"Trance"}},
+        {"MOOD", {"Driving"}}
+    };
+    const std::string fixtureExtra = canonical_extra_metadata_json(fixtureFields);
+    const std::string fixtureVectors = canonical_metadata_vectors_json(fixtureFields);
+    assert(fixtureExtra == R"({"MOOD":["Driving"]})");
+    for (std::uint32_t subsong = 0; subsong <= 2; ++subsong) {
+        Record expected;
+        expected.path = "SYNTHETIC:/Cue Mix.flac";
+        expected.subsong = subsong;
+        expected.artist = "Fixture Artist";
+        expected.title = "Cue Track";
+        expected.genre = "Trance";
+        expected.duration_seconds = "300";
+        expected.codec = "FLAC";
+        expected.extra_metadata_json = fixtureExtra;
+        expected.metadata_vectors_json = fixtureVectors;
+        expected.tag_fingerprint = fingerprint_for(expected);
+        assert(to_tsv_line(expected) == expectedWireRows[subsong]);
+        // Identity is path + subsong. Virtual rows (1/2) must not promote
+        // themselves into a physical file-level row (0).
+        assert(identity_key(expected.path, subsong) !=
+               identity_key(expected.path, (subsong + 1) % 3));
+        if (subsong > 0) assert(expected.subsong != 0);
+    }
+    Record staleFixture;
+    staleFixture.path = "SYNTHETIC:/Cue Mix.flac";
+    staleFixture.subsong = 2;
+    staleFixture.artist = "Fixture Artist";
+    staleFixture.title = "Changed synthetic title";
+    staleFixture.genre = "Trance";
+    staleFixture.duration_seconds = "300";
+    staleFixture.codec = "FLAC";
+    staleFixture.extra_metadata_json = fixtureExtra;
+    staleFixture.metadata_vectors_json = fixtureVectors;
+    staleFixture.tag_fingerprint = fingerprint_for(staleFixture);
+    assert(to_tsv_line(staleFixture) != expectedWireRows[2]);
+
     const auto out = std::filesystem::current_path() / "contract-test.tsv.gz";
     {
         GzipStoredWriter gz(out);
