@@ -32,6 +32,40 @@ The snapshot is regenerable runtime data, not user configuration, so it is kept 
 
 Consumers that only understand the original schema-v1 required keys remain compatible.
 
+## Physical sources and virtual foobar subsongs
+
+The producer exports the Media Library **exactly** as foobar SDK handles:
+`path = get_path()` and `subsong = get_subsong_index()`. Together these
+constitute the complete row identity. A shared `path` is not sufficient to
+deduplicate rows; a CUE file or one audio file can expose multiple legitimate
+nonzero virtual segments. The Bridge never manufactures an additional
+`subsong=0` source when foobar exposes only these virtual handles.
+
+Consumer responsibilities are intentionally asymmetric:
+
+- **DJ Library:** retain nonzero tracks for track-level CD catalog search.
+  Preserve provenance, and only project genre automatically when independent
+  timing and ambiguity checks justify it; virtual rows are not extra audio
+  files.
+- **rekordbox MyTagSync:** nonzero tracks are diagnostics, not file-level
+  ContentID matches or additional physical-path duplicates. Only a unique,
+  separately verified `subsong=0` source can be considered for matching,
+  subject to the existing database/write-safety gates. If the Bridge supplies
+  only virtual rows for a given audio/CUE source, there is no whole-file source
+  to promote by guessing or copying metadata from the first segment.
+
+This does **not** mean that subsong zero alone proves a path is a writable
+audio file, or that every nonzero entry is an embedded-CUE track. The Bridge
+does not parse, synthesize or publish full CUE timing/INDEX boundaries; it
+exports the per-item duration already observed by foobar. These rules use
+the existing schema-v3 `path`/`subsong` columns and require **no schema or
+snapshot file format changes**. See README's physical/virtual consumer contract.
+
+Actual foobar Win32/x64 host tests cover an external multi-file CUE source
+and a Vorbis-comment embedded FLAC CUESHEET, including separate file-level
+sources, distinct virtual handles, absence of synthetic subsong-zero rows,
+and SHA-256 invariants of the generated audio fixtures.
+
 ## Atomic publication
 
 For generation `N`:
