@@ -297,6 +297,15 @@ while ([DateTime]::UtcNow -lt $twoBackingDeadline) {
  Start-Sleep -Milliseconds 350
 }
 if ($twoBackingGen -eq 0) { throw 'Real foobar Media Library failed to index both multi-file WAV sources.' }
+# Two source WAVs must really be file-level Media Library handles before
+# the CUE is introduced, rather than unrelated virtual rows sharing a name.
+$physicalBeforeCue=@($snap.rows | Where-Object {
+ [IO.Path]::GetFileName($_[0]) -in @('Synthetic Multi A.wav','Synthetic Multi B.wav')
+})
+if ($physicalBeforeCue.Count -ne 2 -or
+    @($physicalBeforeCue | Where-Object {[int]($_[1]) -ne 0}).Count -ne 0) {
+ throw 'Multi-file WAV backings were not independent physical subsong-0 rows before CUE.'
+}
 Write-Host "BRIDGE_MULTI_CUE_PHYSICAL_SOURCES_$Architecture=PASS count=2"
 $multiContent=@'
 PERFORMER "Bridge CI"
@@ -333,6 +342,17 @@ while([DateTime]::UtcNow -lt $until) {
 if (-not $multiFound -or $multiRows.Count -ne 2) {
  throw 'Real foobar did not expose two distinct virtual subsongs from the two-file CUE.'
 }
+# Never manufacture a subsong-0 file candidate for a .cue source which
+# foobar only supplies as two nonzero virtual handles. Independent physical
+# WAV handles are a different source identity and are tested above.
+$cueSourceRows=@($snap.rows | Where-Object {
+ [IO.Path]::GetFileName($_[0]) -ceq 'Synthetic Multi.cue'
+})
+if ($cueSourceRows.Count -ne 2 -or
+    @($cueSourceRows | Where-Object {[int]($_[1]) -eq 0}).Count -ne 0) {
+ throw 'Multi-file CUE source unexpectedly exposed synthetic subsong-0 or extra Bridge row.'
+}
+Write-Host "BRIDGE_MULTI_CUE_VIRTUAL_ONLY_SOURCE_$Architecture=PASS count=2"
 $multiExpected=@{
  'Multi File Cue Alpha'=@{Subsong=1;Duration=1}
  'Multi File Cue Beta'=@{Subsong=2;Duration=2}
