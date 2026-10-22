@@ -176,6 +176,19 @@ if (-not $found) {
  }
  throw 'Real foobar did not index two virtual subsongs from the embedded FLAC Vorbis CUESHEET.'
 }
+# This isolated FLAC has only virtual foobar handles 1 and 2. No
+# invented file-level subsong-0 row may be published for this path: that
+# would appear to authorize an unverified Rekordbox ContentID candidate.
+# Inspect the *complete actual Media Library snapshot*, not the two-title
+# subset, so an unexpected third row cannot hide behind the title filter.
+$cueSourceRows=@($snap.Rows | Where-Object {
+ [IO.Path]::GetFileName($_[0]) -ceq $flacName
+})
+if ($cueSourceRows.Count -ne 2 -or
+    @($cueSourceRows | Where-Object {[int]($_[1]) -eq 0}).Count -ne 0) {
+ throw 'Embedded FLAC virtual-only source unexpectedly acquired a physical subsong-0 or extra Bridge row.'
+}
+Write-Host "BRIDGE_EMBEDDED_FLAC_VIRTUAL_ONLY_SOURCE_$Architecture=PASS count=2"
 $expected=@{'Embedded Alpha'=1;'Embedded Beta'=2}
 $identities=[System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 $fingerprints=[System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
