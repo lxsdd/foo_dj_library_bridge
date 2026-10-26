@@ -109,7 +109,7 @@ print("PASS: common scan and existing Bridge-specific release/rights holds")
 import hashlib as _hashlib
 
 _APPROVED_WORKFLOW_GIT_BLOBS = {
-    "build.yml": "6fe573871f3bff4ee572d963108b23e6a9d062e0",
+    "build.yml": "880ab50d18184f325031d32b886b6b4145a5ebb2",
     "candidate.yml": "1a8c7b17a396cdcc5d084583f19649f8c6dac6d5",
     "public-pr-head-ci-recovery.yml": "c6c346346462b4636dea1833af85c36a59bf61e7",
     "release-qualified.yml": "1d6e1f1c335eb143704bd278c5b942f17636c561",
